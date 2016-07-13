@@ -38,57 +38,34 @@ public class SXStreamQueue: SXQueue {
     
     public var status: SXStatus
     public var binded: [SXRuntimeObject] = []
-    public var server: SXServerType
-    public var method: SXRuntimeDataMethods
-    public var delegate: SXRuntimeStreamObjectDelegate?
+    public var server: SXServer
+
     
     public var socket: SXRemoteStreamSocket
+    public var delegate: SXStreamRuntimeDelegate?
     
     public var recvFlag: Int32 = 0
     public var sendFlag: Int32 = 0
     
-    public init(server: SXStreamServer, socket: SXRemoteStreamSocket, handler: (object: SXQueue, data: Data) -> Bool, errHandler: ((object: SXRuntimeObject, err: ErrorProtocol) -> ())?) {
+    public var dataDelegate: SXRuntimeDataDelegate
+  
+    init(server: SXStreamServer, socket: SXRemoteStreamSocket) {
         
         self.recvFlag = server.recvFlag
         self.recvFlag = server.recvFlag
         
         self.socket = socket
-        status = .IDLE
+        status = .idle
         self.server = server
-        self.method = .block(SXRuntimeDataHandlerBlocks(didReceiveDataHandler: {handler(object: $0 as! SXQueue, data: $1)}, didReceiveErrorHandler: errHandler))
+        self.dataDelegate = server
+        
     }
     
-    public init(server: SXStreamServer, socket: SXRemoteStreamSocket, delegate: SXRuntimeDataDelegate) {
-        
-        self.recvFlag = server.recvFlag
-        self.recvFlag = server.recvFlag
-        
-        self.socket = socket
-        status = .IDLE
-        self.server = server
-        self.method = .delegate(delegate)
-    }
-    
-    public func setDataDelegate(delegate delegate: SXRuntimeDataDelegate) {
-        self.method = .delegate(delegate)
-    }
-    
-    init(server: SXStreamServer, socket: SXRemoteStreamSocket, method: SXRuntimeDataMethods) {
-        
-        self.recvFlag = server.recvFlag
-        self.recvFlag = server.recvFlag
-        
-        self.socket = socket
-        status = .IDLE
-        self.server = server
-        self.method = method
-    }
-    
-    public func statusDidChange(status status: SXStatus) {
+    public func statusDidChange(status: SXStatus) {
         self.status = status
     }
     
-    public func getData(flags flags: Int32 = 0) throws -> Data {
+    public func getData(flags: Int32 = 0) throws -> Data {
         return try self.socket.receive(size: self.socket.bufsize, flags: flags)
     }
     
@@ -99,16 +76,13 @@ public class SXStreamQueue: SXQueue {
 }
 
 public protocol SXQueue : SXRuntimeObject , SXRuntimeController {
-    var server: SXServerType {get set}
+    var server: SXServer {get set}
+    
     var binded: [SXRuntimeObject] {get set}
-    var method: SXRuntimeDataMethods {get set}
-    var delegate: SXRuntimeStreamObjectDelegate? {get set}
-    func getData(flags flags: Int32) throws -> Data
-    #if swift(>=3)
-    mutating func bind(obj: inout SXRuntimeObject)
-    #else
-    mutating func bind(inout obj obj: SXRuntimeObject)
-    #endif
+    var status: SXStatus {get set}
+    var dataDelegate: SXRuntimeDataDelegate {get set}
+
+    func getData(flags: Int32) throws -> Data
     mutating func start(completion: () -> ())
 }
 
@@ -125,7 +99,7 @@ extension SXQueue {
         }
     
     public mutating func start(completion: () -> ()) {
-        self.status = .RUNNING
+        self.status = .running
         
         var suspended = false;
         var s = 0
@@ -135,7 +109,7 @@ extension SXQueue {
         
         repeat {
             
-            if self.server.status != .RUNNING {
+            if self.server.status != .running {
                 self.status = self.server.status
             }
             
@@ -152,24 +126,24 @@ extension SXQueue {
             func handleData() {
                 do {
                     let data = try self.getData(flags: self.recvFlag)
-                    let proceed = self.method.didReceiveData(object: self, data: data)
+                    let proceed = self.dataDelegate.didReceiveData(object: self, data: data)
                     s = proceed ? data.length : 0
                 } catch {
                     s = 0
-                    self.method.didReceiveError(object: self, err: error)
+                    self.dataDelegate.didReceiveError?(object: self, err: error)
                 }
             }
             
             switch self.status {
-            case .RUNNING:
+            case .running:
                 
                 handleData()
                 
-            case .RESUMMING:
-                self.status = .RUNNING
+            case .resumming:
+                self.status = .running
                 self.statusDidChange(status: self.status)
                 
-            case .SUSPENDED:
+            case .suspended:
                 if !suspended {
                     self.statusDidChange(status: self.status)
                 }
@@ -184,18 +158,16 @@ extension SXQueue {
                     #endif
                 } catch {
                     s = 0
-                    self.method.didReceiveError(object: self, err: error)
+                    self.dataDelegate.didReceiveError?(object: self, err: error)
                 }
             
                 switch self.status {
-                case .SHOULD_TERMINATE, .IDLE:
+                case .shouldTerminate, .idle:
                     s = 0
-                case .RUNNING, .RESUMMING: handleData()
+                case .running, .resumming: handleData()
                 default: break
                 }
-            case .SHOULD_TERMINATE, .IDLE:
-                
-                self.delegate?.objectWillKill(object: self)
+            case .shouldTerminate, .idle:
                 self.statusDidChange(status: self.status)
             }
             
@@ -203,16 +175,4 @@ extension SXQueue {
         
         completion()
     }
-    
-    #if swift(>=3)
-    public mutating func bind(obj obj: inout SXRuntimeObject) {
-        self.binded.append(obj)
-        obj.owner = self
-    }
-    #else
-    public mutating func bind(inout obj obj: SXRuntimeObject) {
-        self.binded.append(obj)
-        obj.owner = self
-    }
-    #endif
 }

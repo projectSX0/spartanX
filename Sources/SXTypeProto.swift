@@ -56,7 +56,7 @@ public protocol SXSocketTypeProtocol {
 }
 
 public protocol SXStreamProtocol : SXSocketTypeProtocol {
-    var addr: SXSockaddr? {get set}
+    var address: SXSockaddr? {get set}
 }
 
 
@@ -71,26 +71,30 @@ public extension SXBindedSocket where Self : SXLocalSocket {
         var i: Int32 = 0
         
         var yes = true
-        if setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, UInt32(sizeof(Int32))) == -1 {
+        if setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, UInt32(sizeof(Int32.self))) == -1 {
             throw SXSocketError.setSockOpt(String.errno)
         }
         
         switch address {
         case var .INET(sock):
-            i = Darwin.bind(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_in)))
+            i = Foundation.bind(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_in.self)))
             
         case var .INET6(sock):
-            i = Darwin.bind(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_in6)))
+            i = Foundation.bind(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_in6.self)))
+            
+        case var .UNIX(sock):
+            i = Foundation.bind(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_un.self)))
         }
+        
         if i == -1 {
             throw SXSocketError.bind(String.errno)
         }
     }
     
-    public func accept(bufsize bufsize: Int = 16384) throws -> SXRemoteSocket {
+    public func accept(bufsize: Int = 16384) throws -> SXRemoteSocket {
         var addr = sockaddr()
         var socklen = socklen_t()
-        let fd = Darwin.accept(sockfd, &addr, &socklen)
+        let fd = Foundation.accept(sockfd, &addr, &socklen)
         
         return try SXRemoteSocket(fd: fd,
                                   domain: self.domain,
@@ -102,7 +106,7 @@ public extension SXBindedSocket where Self : SXLocalSocket {
     }
     
     public func listen(backlog: Int) throws {
-        if Darwin.listen(sockfd, Int32(backlog)) == -1 {
+        if Foundation.listen(sockfd, Int32(backlog)) == -1 {
             throw SXSocketError.listen(String.errno)
         }
     }
@@ -110,7 +114,7 @@ public extension SXBindedSocket where Self : SXLocalSocket {
 
 public extension SXStreamProtocol where Self : SXSocket {
     
-    public func receive(size size: Int, flags: Int32) throws -> Data {
+    public func receive(size: Int, flags: Int32) throws -> Data {
         #if swift(>=3)
         var buffer = [UInt8](repeating: 0, count: size)
         #else
@@ -127,8 +131,8 @@ public extension SXStreamProtocol where Self : SXSocket {
     
 
     
-    public func send(data data: Data, flags: Int32) {
-        Darwin.send(sockfd, data.bytes, data.length, flags)
+    public func send(data: Data, flags: Int32) {
+        _ = Foundation.send(sockfd, data.bytes, data.length, flags)
     }
 }
 
@@ -137,13 +141,16 @@ public extension SXStreamProtocol where Self : SXLocalSocket {
     public func connect() throws {
         var i: Int32 = 0
         
-        switch self.addr! {
+        switch self.address! {
         case var .INET(sock):
             
-            i = Darwin.connect(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_in)))
+            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_in.self)))
             
         case var .INET6(sock):
-            i = Darwin.connect(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_in6)))
+            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_in6.self)))
+            
+        case var .UNIX(sock):
+            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_un.self)))
         }
         
         if i == -1 {
@@ -155,7 +162,7 @@ public extension SXStreamProtocol where Self : SXLocalSocket {
 
 public extension SXDGRAMProtocol where Self : SXSocket {
     #if swift(>=3)
-    public func recvFrom(addr addr: SXSockaddr, flags: Int32 = 0) -> Data {
+    public func recvFrom(addr: SXSockaddr, flags: Int32 = 0) -> Data {
         var addr_ = addr // since the expression var addr: SXSockaddr is not compatible with Swift 3
         var socklen = addr.socklen
       
@@ -176,13 +183,13 @@ public extension SXDGRAMProtocol where Self : SXSocket {
     }
     #endif
     
-    public func sendTo(addr addr: SXSockaddr, data: Data, flags: Int32 = 0) {
+    public func sendTo(addr: SXSockaddr, data: Data, flags: Int32 = 0) {
         var addr_ = addr
         sendto(sockfd, data.bytes, data.length, flags, UnsafeMutablePointer<sockaddr>(getMutablePointer(&addr_)), addr_.socklen)
     }
     
 
-    public func boardcast(port port: in_port_t, data: Data, flags: Int32 = 0) throws {
+    public func boardcast(port: in_port_t, data: Data, flags: Int32 = 0) throws {
         let addr = try SXSockaddr.boardcastAddr(port: port)
         sendTo(addr: addr, data: data, flags: flags)
     }

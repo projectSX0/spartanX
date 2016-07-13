@@ -90,9 +90,9 @@ public enum SXSocketDomains: UInt8 {
 }
 
 public enum SXSocketTypes: Int32 {
-    case SOCK_STREAM    = 1
-    case SOCK_DGRAM     = 2
-    case SOCK_RAW       = 3
-    case SOCK_RDM       = 4
-    case SOCK_SEQPACKET = 5
+    case stream    = 1
+    case dgram     = 2
+    case raw       = 3
+    case rdm       = 4
+    case seqpacket = 5
 }

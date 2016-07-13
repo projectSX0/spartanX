@@ -83,6 +83,7 @@ import Foundation
             self.sepearator = sepearatorBytes
         }
     }
+    
     public struct DataReader {
         public var origin: Data
         public var currentOffset: Int = 0

@@ -33,72 +33,58 @@
 import Foundation
 
 public enum SXStatus {
-    case IDLE
-    case RUNNING
-    case RESUMMING
-    case SUSPENDED
-    case SHOULD_TERMINATE
+    case idle
+    case running
+    case resumming
+    case suspended
+    case shouldTerminate
 }
 
 public protocol SXRuntimeObject {
-    var status: SXStatus {get set}
-    var owner: SXRuntimeObject? {get set}
     
-    func statusDidChange(status status: SXStatus)
+    var status: SXStatus { get }
+//    var owner: AnyObject? {get set}
+
+    func statusDidChange(status: SXStatus)
+    
+//    func start()
     func close()
 }
 
 public protocol SXRuntimeController {
-    var method: SXRuntimeDataMethods {get set}
     var recvFlag: Int32 {get set}
     var sendFlag: Int32 {get set}
 }
 
-public protocol SXServerEventDelegate : SXRuntimeStreamObjectDelegate {
-    func serverShouldConnect(server: SXServerType, withSocket socket: SXRemoteSocket) -> Bool
-    func serverDidStart(server: SXServerType)
-    func serverDidKill(server: SXServerType)
+public protocol SXRuntimeBasicDelegate {
+    var didChangeStatus: ((object: SXRuntimeObject, status: SXStatus) -> ())? {get set}
 }
 
 public protocol SXRuntimeDataDelegate {
-    func didReceiveData(object object: SXRuntimeObject, data: Data) -> Bool
-    func didReceiveError(object object: SXRuntimeObject, err: ErrorProtocol)
+    var didReceiveData: (object: SXQueue, data: Data) -> Bool {get set}
+    var didReceiveError: ((object: SXRuntimeObject, err: ErrorProtocol) -> ())? {get set}
 }
 
-public protocol SXRuntimeStreamObjectDelegate : SXRuntimeObjectDelegate {
-    func objectDidConnect(object object: SXRuntimeObject, withSocket: SXRemoteSocket)
-    func objectDidDisconnect(object object: SXRuntimeObject, withSocket: SXRemoteSocket)
-    func objectWillKill(object object: SXRuntimeObject)
+public protocol SXStreamRuntimeDelegate {
+    var didConnect: ((object: SXRuntimeObject, withSocket: SXRemoteSocket) -> ())? {get set}
+    var didDisconnect: ((object: SXRuntimeObject, withSocket: SXRemoteSocket) -> ())? {get set}
+    var willKill: ((object: SXRuntimeObject) -> ())? {get set}
 }
 
-public protocol SXRuntimeObjectDelegate {
-    func objectDidChangeStatus(object object: SXRuntimeObject, status: SXStatus)
+
+public protocol SXServerDelegate: SXRuntimeBasicDelegate {
+    var shouldConnect: ((server: SXServer, withSocket: SXRemoteSocket) -> Bool)? {get set}
+    var didStart: ((server: SXServer) -> ())? {get set}
+    var didKill: ((server: SXServer) -> ())? {get set}
 }
 
-public struct SXRuntimeDataHandlerBlocks {
-    var didReceiveDataHandler: ((object: SXRuntimeObject, data: Data) -> Bool)
-    var didReceiveErrorHandler: ((object: SXRuntimeObject, err: ErrorProtocol) -> ())?
+public protocol SXStreamServerDelegate : SXServerDelegate, SXStreamRuntimeDelegate {
 }
 
-public enum SXRuntimeDataMethods {
-    case delegate(SXRuntimeDataDelegate)
-    case block(SXRuntimeDataHandlerBlocks)
-    
-    func didReceiveData(object object: SXRuntimeObject, data: Data) -> Bool {
-        switch self {
-        case let .delegate(delegate):
-            return delegate.didReceiveData(object: object, data: data)
-        case let .block(block):
-            return block.didReceiveDataHandler(object: object, data: data)
-        }
-    }
-    
-    func didReceiveError(object object: SXRuntimeObject, err: ErrorProtocol) {
-        switch self {
-        case let .delegate(delegate):
-            delegate.didReceiveError(object: object, err: err)
-        case let .block(block):
-            block.didReceiveErrorHandler?(object: object, err: err)
-        }
-    }
+
+internal func transfer (lhs: inout SXStreamRuntimeDelegate, rhs: inout SXStreamServerDelegate) {
+    lhs.didConnect = rhs.didConnect
+    lhs.didDisconnect = rhs.didDisconnect
+    lhs.willKill = rhs.willKill
 }
+

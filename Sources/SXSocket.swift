@@ -30,7 +30,6 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-import Darwin
 import Foundation
 
 public protocol SXSocket {
@@ -57,7 +56,7 @@ public protocol SXLocalSocket : SXSocket {
     var port: in_port_t? {get set}
 }
 
-public class SXServerSocket : SXLocalSocket, SXBindedSocket {
+public class SXClientSocket: SXLocalSocket {
     
     /* SXLocalSocket */
     public var sockfd: Int32
@@ -67,13 +66,13 @@ public class SXServerSocket : SXLocalSocket, SXBindedSocket {
     public var port: in_port_t?
     public var bufsize: Int
     
-    public var address : SXSockaddr
+    public var address : SXSockaddr?
     
-    init(port: in_port_t,
-                  domain: SXSocketDomains,
-                  type: SXSocketTypes,
-                  protocol: Int32 = 0,
-                  bufsize: Int) throws {
+    public init(port: in_port_t,
+                domain: SXSocketDomains,
+                type: SXSocketTypes,
+                protocol: Int32 = 0,
+                bufsize: Int) throws {
         
         self.address = try SXSockaddr(withDomain: domain, port: port)
         
@@ -86,10 +85,9 @@ public class SXServerSocket : SXLocalSocket, SXBindedSocket {
         self.sockfd = socket(Int32(domain.rawValue), type.rawValue, `protocol`)
         if self.sockfd == -1 {throw SXSocketError.socket(String.errno)}
         
-        try self.bind()
     }
     
-    init(addr: SXSockaddr, port: in_port_t, domain: SXSocketDomains, type: SXSocketTypes, `protocol`: Int32, bufsize: Int) throws {
+    public init(addr: SXSockaddr, port: in_port_t, domain: SXSocketDomains, type: SXSocketTypes, `protocol`: Int32, bufsize: Int) throws {
         
         self.address = addr
         
@@ -100,6 +98,56 @@ public class SXServerSocket : SXLocalSocket, SXBindedSocket {
         self.bufsize = bufsize
         self.type = type
         self.sockfd = socket(Int32(domain.rawValue), type.rawValue, `protocol`)
+        print(self.sockfd)
+        if self.sockfd == -1 {throw SXSocketError.socket(String.errno)}
+        
+    }
+}
+
+public class SXServerSocket : SXLocalSocket, SXBindedSocket {
+    
+    /* SXLocalSocket */
+    public var sockfd: Int32
+    public var domain: SXSocketDomains
+    public var type: SXSocketTypes
+    public var `protocol`: Int32
+    public var port: in_port_t?
+    public var bufsize: Int
+    
+    public var address : SXSockaddr
+    
+    public init(port: in_port_t,
+                  domain: SXSocketDomains,
+                  type: SXSocketTypes,
+                  protocol: Int32 = 0,
+                  bufsize: Int) throws {
+        
+        self.address = try SXSockaddr(withDomain: domain, port: port)
+
+        /* SXLocalSocket */
+        self.port = port
+        self.domain = domain
+        self.`protocol` = `protocol`
+        self.bufsize = bufsize
+        self.type = type
+        self.sockfd = socket(Int32(domain.rawValue), type.rawValue, `protocol`)
+        if self.sockfd == -1 {throw SXSocketError.socket(String.errno)}
+        
+        try self.bind()
+    }
+    
+    public init(addr: SXSockaddr, port: in_port_t, domain: SXSocketDomains, type: SXSocketTypes, `protocol`: Int32, bufsize: Int) throws {
+        
+        self.address = addr
+        
+        /* SXLocalSocket */
+        self.port = port
+        self.domain = domain
+        self.`protocol` = `protocol`
+        self.bufsize = bufsize
+        self.type = type
+        self.sockfd = socket(Int32(domain.rawValue), type.rawValue, `protocol`)
+        print(self.sockfd)
         if self.sockfd == -1 {throw SXSocketError.socket(String.errno)}
         try self.bind()
     }
@@ -111,34 +159,65 @@ public class SXRemoteSocket: SXSocket {
     public var type: SXSocketTypes
     public var `protocol`: Int32
     public var bufsize: Int
-    public var addr : SXSockaddr?
+    public var address : SXSockaddr?
     public var port: in_port_t?
     
     public init(fd: Int32, domain: SXSocketDomains, type: SXSocketTypes, `protocol`: Int32, bufsize: Int = 16384) throws {
         var caddr = sockaddr()
         var len = socklen_t()
         getsockname(fd, &caddr, &len)
-        self.addr = try SXSockaddr(caddr, socklen: len)
+        print(len)
+        print(caddr.sa_family)
+        self.address = try SXSockaddr(caddr, socklen: len)
         self.sockfd = fd
         self.domain = domain
         self.type = type
         self.`protocol` = `protocol`
         self.bufsize = bufsize
         var yes = 1
-        setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &yes, UInt32(sizeof(Int32)))
+        setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &yes, UInt32(sizeof(Int32.self)))
     }
     
     public init(fd: Int32, domain: SXSocketDomains, type: SXSocketTypes, `protocol`: Int32, addr: sockaddr, len: socklen_t, bufsize: Int = 16384) throws {
-        self.addr = try SXSockaddr(addr, socklen: len)
+        self.address = try SXSockaddr(addr, socklen: len)
         self.sockfd = fd
         self.domain = domain
         self.type = type
         self.`protocol` = `protocol`
         self.bufsize = bufsize
     }
+    
+    public var ip: String {
+        if let _ = self.address {
+            var len: socklen_t = 0
+            #if swift(>=3)
+                var buffer = [Int8](repeating: 0, count: Int(PATH_MAX))
+            #else
+                var buffer = [Int8](count: Int(INET6_ADDRSTRLEN), repeatedValue: 0)
+            #endif
+            switch self.address! {
+            case .INET(var addr):
+                len = socklen_t(sizeof(sockaddr_in.self))
+                _ = Foundation.getpeername(self.sockfd, UnsafeMutablePointer<sockaddr>(getMutablePointer(&addr)), &len)
+                inet_ntop(AF_INET, getpointer(&addr.sin_addr) , &buffer, len)
+            case .INET6(var addr):
+                len = socklen_t(sizeof(sockaddr_in6.self))
+                _ = Foundation.getpeername(self.sockfd, UnsafeMutablePointer<sockaddr>(getMutablePointer(&addr)), &len)
+                inet_ntop(AF_INET, getpointer(&addr.sin6_addr) , &buffer, len)
+            case .UNIX(var un):
+                strncpy(&buffer, UnsafePointer<Int8>(getpointer(&un.sun_path)), Int(PATH_MAX))
+            }
+            #if swift(>=3)
+                return String(cString: buffer)
+            #else
+                return String(CString: buffer, encoding: NSASCIIStringEncoding)!
+            #endif
+        }
+        return ""
+    }
 }
 
-public class SXRemoteStreamSocket : SXRemoteSocket, SXStreamProtocol {
+public final class SXRemoteStreamSocket : SXRemoteSocket, SXStreamProtocol {
     public override init(fd: Int32, domain: SXSocketDomains, type: SXSocketTypes, protocol: Int32, bufsize: Int) throws {
         try super.init(fd: fd, domain: domain, type: type, protocol: `protocol`, bufsize: bufsize)
     }
@@ -148,12 +227,12 @@ public class SXRemoteStreamSocket : SXRemoteSocket, SXStreamProtocol {
     }
 }
 
-public class SXRemoteDGRAMSocket : SXRemoteSocket, SXDGRAMProtocol {
-    public override init(fd: Int32, domain: SXSocketDomains, type: SXSocketTypes, protocol: Int32, bufsize: Int) throws {
-        try super.init(fd: fd, domain: domain, type: type, protocol: `protocol`, bufsize: bufsize)
-    }
-    
-    public init(socket: SXRemoteSocket) throws {
-        try super.init(fd: socket.sockfd, domain: socket.domain, type: socket.type, protocol: socket.`protocol`)
-    }
-}
+//public class SXRemoteDGRAMSocket : SXRemoteSocket, SXDGRAMProtocol {
+//    public override init(fd: Int32, domain: SXSocketDomains, type: SXSocketTypes, protocol: Int32, bufsize: Int) throws {
+//        try super.init(fd: fd, domain: domain, type: type, protocol: `protocol`, bufsize: bufsize)
+//    }
+//    
+//    public init(socket: SXRemoteSocket) throws {
+//        try super.init(fd: socket.sockfd, domain: socket.domain, type: socket.type, protocol: socket.`protocol`)
+//    }
+//}
