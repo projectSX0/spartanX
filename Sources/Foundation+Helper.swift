@@ -87,6 +87,8 @@ extension Strideable {
             return a
         }
         
+        #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+        
         var length: Int {
             return count
         }
@@ -108,6 +110,7 @@ extension Strideable {
             
             return i + offset
         }
+        #endif
     }
     
     extension String {
