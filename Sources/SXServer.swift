@@ -76,7 +76,7 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
         self.socket.close()
     }
     
-    init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, dataDelegate: SXRuntimeDataDelegate) throws {
+    public init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, dataDelegate: SXRuntimeDataDelegate) throws {
         self.status = .idle
         self.socket = try SXLocalSocket(port: port, domain: domain, type: .stream, protocol: `protocol`, bufsize: bufsize)
         self.port = port
