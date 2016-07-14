@@ -70,7 +70,7 @@ import LinuxFoundation
         public var origin: Data
         public var currentOffset: Int = 0
         
-        init(fromData data: Data) {
+        public init(fromData data: Data) {
             self.origin = data
         }
     }
