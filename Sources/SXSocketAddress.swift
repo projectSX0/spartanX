@@ -34,7 +34,7 @@ import Foundation
 
 #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
 public let UNIX_PATH_MAX = 104
-#elseif os(FreeBSD)
+#elseif os(FreeBSD) || os(Linux)
 public let UNIX_PATH_MAX = 108
 #endif
 
