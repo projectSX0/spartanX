@@ -47,8 +47,8 @@ import Foundation
             { return nil }
             
             var i = 0
-            let mcmp = {memcmp(b, self.bytes.advancedBy(offset + i), len)}
-            
+//            let mcmp = {memcmp(b, self.bytes.advancedBy(offset + i), len)}
+             let mcmp = {memcmp(b,(self as NSData).bytes.advanced(by: offset + i), len)}
             
             while (mcmp() != 0) {
                 if i + offset == self.length {
@@ -107,7 +107,7 @@ import Foundation
             if holder == nil {
                 return nil
             }
-            return origin.subdataWithRange(holder!).mutableCopy() as? Data
+            return origin.ssubdata(with:holder!).mutableCopy() as? Data
         }
     }
     
@@ -120,7 +120,7 @@ import Foundation
         
         public mutating func nextSegmentOfData(separatedBy bytes: inout [UInt8]) -> Data? {
             if let range = rangeOfNextSegmentOfData(separatedBy: &bytes) {
-                return origin.subdataWithRange(range).mutableCopy() as? Data
+                return origin.subdata(with:range).mutableCopy() as? Data
             }
             return nil
         }
