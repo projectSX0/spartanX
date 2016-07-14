@@ -31,6 +31,7 @@
 //
 
 import Foundation
+import LinuxFoundation
 
 extension Array {
     init(count: Int, initalizer: (index: Int) -> Element) {

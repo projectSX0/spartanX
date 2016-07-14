@@ -31,6 +31,7 @@
 //
 
 import Foundation
+import LinuxFoundation
 
 public protocol SXServer : SXRuntimeObject, SXRuntimeController {
     var maxGuest: Int { get set }

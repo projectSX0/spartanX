@@ -7,63 +7,64 @@
 //
 
 import Foundation
+import LinuxFoundation
 
 #if os(Linux)
-    typealias Data = NSMutableData
-
-    extension String {
-        public enum Encoding {
-            case ascii
-            case utf8
-            case utf16
-            
-            var raw: NSStringEncoding {
-                switch self {
-                case .utf8: return NSUTF8StringEncoding
-                case .utf16: return NSUTF16StringEncoding
-                default: return NSASCIIStringEncoding
-                }
-            }
-        }
-        
-        func cString(using encoding: String.Encoding) -> [CChar]? {
-            return self.cString(using: encoding.raw)
-        }
-    }
-    
-    extension Data {
-        
-    
-        convenience init(bytes: [UInt8], count: Int) {
-            var bytesCopy = bytes
-            self.init(bytes: &bytesCopy, length: count)
-        }
-        
-        var isEmpty: Bool {
-            return self.length == 0
-        }
-        
-        var count: Int {
-            return self.length
-        }
-        
-        func findBytes(bytes b: UnsafeMutablePointer<Void>, offset: Int = 0, len: Int) -> Int? {
-            if offset < 0 || len < 0 || self.length == 0 || len + offset > self.length
-            { return nil }
-            
-            var i = 0
-             let mcmp = {memcmp(b,(self as NSData).bytes.advanced(by: offset + i), len)}
-            
-            while (mcmp() != 0) {
-                if i + offset == self.length {
-                    break
-                }
-                i += 1
-            }
-            
-            return i + offset
-        }
-    }
+//    typealias Data = NSMutableData
+//
+//    extension String {
+//        public enum Encoding {
+//            case ascii
+//            case utf8
+//            case utf16
+//            
+//            var raw: NSStringEncoding {
+//                switch self {
+//                case .utf8: return NSUTF8StringEncoding
+//                case .utf16: return NSUTF16StringEncoding
+//                default: return NSASCIIStringEncoding
+//                }
+//            }
+//        }
+//        
+//        func cString(using encoding: String.Encoding) -> [CChar]? {
+//            return self.cString(using: encoding.raw)
+//        }
+//    }
+//    
+//    extension Data {
+//        
+//    
+//        convenience init(bytes: [UInt8], count: Int) {
+//            var bytesCopy = bytes
+//            self.init(bytes: &bytesCopy, length: count)
+//        }
+//        
+//        var isEmpty: Bool {
+//            return self.length == 0
+//        }
+//        
+//        var count: Int {
+//            return self.length
+//        }
+//        
+//        func findBytes(bytes b: UnsafeMutablePointer<Void>, offset: Int = 0, len: Int) -> Int? {
+//            if offset < 0 || len < 0 || self.length == 0 || len + offset > self.length
+//            { return nil }
+//            
+//            var i = 0
+//             let mcmp = {memcmp(b,(self as NSData).bytes.advanced(by: offset + i), len)}
+//            
+//            while (mcmp() != 0) {
+//                if i + offset == self.length {
+//                    break
+//                }
+//                i += 1
+//            }
+//            
+//            return i + offset
+//        }
+//    }
 
     public struct DataReader {
         public var origin: Data

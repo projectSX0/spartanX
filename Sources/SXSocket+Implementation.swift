@@ -31,6 +31,7 @@
 //
 
 import Foundation
+import LinuxFoundation
 
 public extension SXLocal where Self : SXSocket {
 

@@ -31,6 +31,7 @@
 //
 
 import Foundation
+import LinuxFoundation
 
 public enum SXStatus {
     case idle
