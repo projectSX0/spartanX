@@ -32,7 +32,7 @@ public class SXThreadPool : SXThreadingProxy {
     public var numberOfThreads: Int
     var threads: [SXThread]
     
-    public static let `default` = SXThreadPool(nthreads: 4)
+    public static let `default` = SXThreadPool(nthreads: 100)
     
     public func execute(block: ()->Void) {
         threads.sorted{ $0.queue.count < $1.queue.count }.first!.execute(block: block)
@@ -53,7 +53,7 @@ public class SXThread {
         var blocks = [() -> Void]()
         
         var mutexPointer: UnsafeMutablePointer<pthread_mutex_t> {
-            return getMutablePointer(&mutex)
+            return mutablePointer(of: &mutex)
         }
         
         init() {
@@ -93,6 +93,6 @@ public class SXThread {
                     pthread_mutex_unlock(blockQueue.mutexPointer)
                 }
             }
-            }, UnsafeMutablePointer<Void>(getMutablePointer(&self.queue)))
+            }, UnsafeMutablePointer<Void>(mutablePointer(of: &self.queue)))
     }
 }

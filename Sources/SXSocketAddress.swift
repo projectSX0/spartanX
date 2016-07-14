@@ -96,11 +96,11 @@ public enum SXSocketAddress {
         #endif
         switch self {
         case var .INET(`in`):
-            inet_ntop(AF_INET, getpointer(&`in`.sin_addr) , &buffer, socklen_t(sizeof(sockaddr_in.self)))
+            inet_ntop(AF_INET, pointer(of: &`in`.sin_addr) , &buffer, socklen_t(sizeof(sockaddr_in.self)))
         case var .INET6(in6):
-            inet_ntop(AF_INET6, getpointer(&in6.sin6_addr) , &buffer, socklen_t(sizeof(sockaddr_in6.self)))
+            inet_ntop(AF_INET6, pointer(of: &in6.sin6_addr) , &buffer, socklen_t(sizeof(sockaddr_in6.self)))
         case var .UNIX(un):
-            strncpy(&buffer, UnsafePointer<Int8>(getpointer(&un.sun_path)), Int(PATH_MAX))
+            strncpy(&buffer, UnsafePointer<Int8>(pointer(of: &un.sun_path)), Int(PATH_MAX))
         }
         #if swift(>=3)
         return String(cString: buffer)
@@ -124,10 +124,10 @@ public enum SXSocketAddress {
         var addr = addr_
         switch socklen {
         case UInt32(sizeof(sockaddr_in.self)):
-            self = .INET(UnsafeMutablePointer<sockaddr_in>(getMutablePointer(&addr)).pointee)
+            self = .INET(UnsafeMutablePointer<sockaddr_in>(mutablePointer(of: &addr)).pointee)
             
         case UInt32(sizeof(sockaddr_in6.self)):
-            self = .INET6(UnsafeMutablePointer<sockaddr_in6>(getMutablePointer(&addr)).pointee)
+            self = .INET6(UnsafeMutablePointer<sockaddr_in6>(mutablePointer(of: &addr)).pointee)
             
         default:
             throw SXSocketError.nonImplementedDomain
@@ -197,7 +197,7 @@ public enum SXSocketAddress {
             var sockaddr = sockaddr_in(port: port.bigEndian)
             inet_pton(AF_INET,
                   address.cString(using: .ascii),
-                  UnsafeMutablePointer<Void>(getMutablePointer(&sockaddr.sin_addr)))
+                  UnsafeMutablePointer<Void>(mutablePointer(of: &sockaddr.sin_addr)))
 
             self = .INET(sockaddr)
             
@@ -221,7 +221,7 @@ public enum SXSocketAddress {
             var sockaddr = sockaddr_in6(port: port.bigEndian)
             inet_pton(AF_INET6,
                       address.cString(using: .ascii),
-                      UnsafeMutablePointer<Void>(getMutablePointer(&sockaddr.sin6_addr)))
+                      UnsafeMutablePointer<Void>(mutablePointer(of: &sockaddr.sin6_addr)))
 
             self = .INET6(sockaddr)
             
@@ -232,7 +232,7 @@ public enum SXSocketAddress {
             sockaddr.sun_len = UInt8(sizeof(sockaddr_un.self))
             #endif
             let cstr = address.cString(using: .utf8)!
-            strncpy(UnsafeMutablePointer<Int8>(getMutablePointer(&(sockaddr.sun_path))), cstr, UNIX_PATH_MAX)
+            strncpy(UnsafeMutablePointer<Int8>(mutablePointer(of: &(sockaddr.sun_path))), cstr, UNIX_PATH_MAX)
             
             self = .UNIX(sockaddr)
             

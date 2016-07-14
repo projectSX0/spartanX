@@ -137,13 +137,22 @@ extension Strideable {
     }
     
     
-    func getpointer<T>(_ obj: inout T) -> UnsafePointer<T> {
+    public func pointer<T>(of obj: inout T) -> UnsafePointer<T> {
         let ghost: (UnsafePointer<T>) -> UnsafePointer<T> = {$0}
         return withUnsafePointer(&obj, {ghost($0)})
     }
     
-    func getMutablePointer<T>(_ obj: inout T) -> UnsafeMutablePointer<T> {
+    public func mutablePointer<T>(of obj: inout T) -> UnsafeMutablePointer<T> {
         let ghost: (UnsafeMutablePointer<T>) -> UnsafeMutablePointer<T> = {$0}
         return withUnsafeMutablePointer(&obj, {ghost($0)})
     }
+//    public func getpointer<T>(_ obj: inout T) -> UnsafePointer<T> {
+//        let ghost: (UnsafePointer<T>) -> UnsafePointer<T> = {$0}
+//        return withUnsafePointer(&obj, {ghost($0)})
+//    }
+//    
+//    public func getMutablePointer<T>(_ obj: inout T) -> UnsafeMutablePointer<T> {
+//        let ghost: (UnsafeMutablePointer<T>) -> UnsafeMutablePointer<T> = {$0}
+//        return withUnsafeMutablePointer(&obj, {ghost($0)})
+//    }
 #endif

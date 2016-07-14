@@ -49,13 +49,13 @@ public extension SXLocal where Self : SXSocket {
 
         switch address {
         case var .INET(addr):
-            err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(getpointer(&addr)), socklen_t(sizeof(sockaddr_in.self)))
+            err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_in.self)))
 
         case var .INET6(addr):
-            err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(getpointer(&addr)), socklen_t(sizeof(sockaddr_in6.self)))
+            err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_in6.self)))
 
         case var .UNIX(addr):
-            err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(getpointer(&addr)), socklen_t(sizeof(sockaddr_un.self)))
+            err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_un.self)))
         }
 
 
@@ -101,13 +101,13 @@ extension SXSocket {
         
         switch self.address! {
         case var .INET(addr):
-            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(getpointer(&addr)), socklen_t(sizeof(sockaddr_in.self)))
+            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_in.self)))
             
         case var .INET6(addr):
-            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(getpointer(&addr)), socklen_t(sizeof(sockaddr_in6.self)))
+            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_in6.self)))
             
         case var .UNIX(addr):
-            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(getpointer(&addr)), socklen_t(sizeof(sockaddr_un.self)))
+            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_un.self)))
         }
         
         if i == -1 {
@@ -137,7 +137,7 @@ extension SXSocket {
 
         var buf = [UInt8](repeating: 0, count: bufsize)
 
-        let len = recvfrom(sockfd, &buf, bufsize, flags, UnsafeMutablePointer<sockaddr>(getMutablePointer(&addr_)), &socklen)
+        let len = recvfrom(sockfd, &buf, bufsize, flags, UnsafeMutablePointer<sockaddr>(mutablePointer(of: &addr_)), &socklen)
 
         return Data(bytes: buf, count: len)
     }
@@ -154,7 +154,7 @@ extension SXSocket {
 
     public func sendTo(addr: SXSocketAddress, data: Data, flags: Int32 = 0) {
         var addr_ = addr
-        sendto(sockfd, data.bytes, data.length, flags, UnsafeMutablePointer<sockaddr>(getMutablePointer(&addr_)), addr_.socklen)
+        sendto(sockfd, data.bytes, data.length, flags, UnsafeMutablePointer<sockaddr>(mutablePointer(of: &addr_)), addr_.socklen)
     }
     
     public func send(data: Data, flags: Int32) throws {
