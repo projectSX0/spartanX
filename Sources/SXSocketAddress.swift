@@ -227,7 +227,7 @@ public enum SXSocketAddress {
             
         case .UNIX:
             var sockaddr = sockaddr_un()
-            sockaddr.sun_family = UInt8(AF_UNIX)
+            sockaddr.sun_family = sa_family_t(AF_UNIX)
             #if !os(Linux)
             sockaddr.sun_len = UInt8(sizeof(sockaddr_un.self))
             #endif
