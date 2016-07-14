@@ -35,8 +35,3 @@ import Foundation
 public protocol SXObject {
     func close()
 }
-
-/* empty constraint */
-public protocol SXRemoteObject : SXObject {
-    
-}

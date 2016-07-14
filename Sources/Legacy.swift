@@ -7,8 +7,8 @@
 //
 
 import Foundation
+
 #if !swift(>=3)
-    
     extension UnsafeMutablePointer {
         var pointee: Memory {
             get {

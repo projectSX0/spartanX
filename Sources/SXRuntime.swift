@@ -43,11 +43,9 @@ public enum SXStatus {
 public protocol SXRuntimeObject {
     
     var status: SXStatus { get }
-//    var owner: AnyObject? {get set}
 
     func statusDidChange(status: SXStatus)
     
-//    func start()
     func close()
 }
 
@@ -66,14 +64,14 @@ public protocol SXRuntimeDataDelegate {
 }
 
 public protocol SXStreamRuntimeDelegate {
-    var didConnect: ((object: SXRuntimeObject, withSocket: SXRemoteSocket) -> ())? {get set}
-    var didDisconnect: ((object: SXRuntimeObject, withSocket: SXRemoteSocket) -> ())? {get set}
+    var didConnect: ((object: SXRuntimeObject, withSocket: SXSocket) -> ())? {get set}
+    var didDisconnect: ((object: SXRuntimeObject, withSocket: SXSocket) -> ())? {get set}
     var willKill: ((object: SXRuntimeObject) -> ())? {get set}
 }
 
 
 public protocol SXServerDelegate: SXRuntimeBasicDelegate {
-    var shouldConnect: ((server: SXServer, withSocket: SXRemoteSocket) -> Bool)? {get set}
+    var shouldConnect: ((server: SXServer, withSocket: SXSocket) -> Bool)? {get set}
     var didStart: ((server: SXServer) -> ())? {get set}
     var didKill: ((server: SXServer) -> ())? {get set}
 }

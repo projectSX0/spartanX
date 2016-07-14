@@ -34,14 +34,14 @@ import Foundation
 
 public protocol SXServer : SXRuntimeObject, SXRuntimeController {
     var maxGuest: Int { get set }
-    var socket: SXServerSocket { get set }
+    var socket: SXLocalSocket { get set }
    
     var port: in_port_t { get set }
     var bufsize: Int { get set }
     var backlog: Int { get set }
     
     #if swift(>=3)
-    func start(listenQueue: (() -> DispatchQueue), operateQueue: (() -> DispatchQueue))
+    func start(listenQueue: (() -> SXThreadingProxy), operateQueue: (() -> SXThreadingProxy))
     #else
     func start(listenQueue: (() -> dispatch_queue_t), operateQueue: (() -> dispatch_queue_t))
     #endif
@@ -50,7 +50,7 @@ public protocol SXServer : SXRuntimeObject, SXRuntimeController {
 
 public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
     public var maxGuest: Int
-    public var socket: SXServerSocket
+    public var socket: SXLocalSocket
    
     public var owner: AnyObject? = nil
     public var status: SXStatus
@@ -78,7 +78,7 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
     
     init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, dataDelegate: SXRuntimeDataDelegate) throws {
         self.status = .idle
-        self.socket = try SXServerSocket.init(port: port, domain: domain, type: .stream, protocol: `protocol`, bufsize: bufsize)
+        self.socket = try SXLocalSocket(port: port, domain: domain, type: .stream, protocol: `protocol`, bufsize: bufsize)
         self.port = port
         self.backlog = backlog
         self.maxGuest = maxGuest
@@ -90,7 +90,7 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
     
     public init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, handler: (object: SXQueue, data: Data) -> Bool, errHandler: ((object: SXRuntimeObject, err: ErrorProtocol) -> ())? = nil) throws {
         self.status = .idle
-        self.socket = try SXServerSocket.init(port: port, domain: domain, type: .stream, protocol: `protocol`, bufsize: bufsize)
+        self.socket = try SXLocalSocket(port: port, domain: domain, type: .stream, protocol: `protocol`, bufsize: bufsize)
         self.port = port
         self.backlog = backlog
         self.maxGuest = maxGuest
@@ -101,12 +101,27 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
     #if swift(>=3)
 
     public func start() {
-        self.start(listenQueue: {DispatchQueue.global()}, operateQueue: {DispatchQueue.global()})
+        self.start(listenQueue: {
+            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+            return GrandCentralDispatchQueue(DispatchQueue.global())
+            #elseif os(Linux) || os(FreeBSD)
+            return SXThreadPool.default
+            #endif
+            }, operateQueue: {
+            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+                return GrandCentralDispatchQueue(DispatchQueue.global())
+            #elseif os(Linux) || os(FreeBSD)
+                return SXThreadPool.default
+            #endif
+            }
+        )
     }
     
-    public func start(listenQueue listeningQueue: (() -> DispatchQueue), operateQueue operatingQueue: (()->DispatchQueue)) {
+    public func start(listenQueue listeningQueue: (() -> SXThreadingProxy), operateQueue operatingQueue: (()->SXThreadingProxy)) {
         
-        listeningQueue().async() {
+        var listenQueue = listeningQueue()
+        listenQueue.execute {
+
             self.status = .running
             var count = 0
             do {
@@ -122,7 +137,7 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
                     
                     do {
                         
-                        let socket = try SXRemoteStreamSocket(socket: try self.socket.accept(bufsize: self.bufsize))
+                        let socket = try self.socket.accept(bufsize: self.bufsize)
                         if count >= self.maxGuest {
                             count += 1
                             continue
@@ -141,7 +156,8 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
                             transfer(lhs: &queue.delegate!, rhs: &self.delegate!)
                         }
                         
-                        operatingQueue().async() {
+                        var operateQueue = operatingQueue()
+                        operateQueue.execute {
                             queue.start(completion: {
                                 queue.close()
                                 queue.delegate?.didDisconnect?(object: queue, withSocket: queue.socket)

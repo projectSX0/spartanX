@@ -41,7 +41,7 @@ public class SXStreamQueue: SXQueue {
     public var server: SXServer
 
     
-    public var socket: SXRemoteStreamSocket
+    public var socket: SXSocket
     public var delegate: SXStreamRuntimeDelegate?
     
     public var recvFlag: Int32 = 0
@@ -49,7 +49,7 @@ public class SXStreamQueue: SXQueue {
     
     public var dataDelegate: SXRuntimeDataDelegate
   
-    init(server: SXStreamServer, socket: SXRemoteStreamSocket) {
+    init(server: SXStreamServer, socket: SXSocket) {
         
         self.recvFlag = server.recvFlag
         self.recvFlag = server.recvFlag
@@ -65,14 +65,19 @@ public class SXStreamQueue: SXQueue {
         self.status = status
     }
     
-    public func getData(flags: Int32 = 0) throws -> Data {
-        return try self.socket.receive(size: self.socket.bufsize, flags: flags)
+    public func retrieveData(with flags: Int32 = 0) throws -> Data? {
+        let data = try self.socket.receive(size: self.socket.bufsize, flags: flags)
+        if data.isEmpty {
+            return nil
+        }
+        return data
     }
     
     public func close() {
         self.binded.removeAll()
         self.socket.close()
     }
+    
 }
 
 public protocol SXQueue : SXRuntimeObject , SXRuntimeController {
@@ -80,9 +85,12 @@ public protocol SXQueue : SXRuntimeObject , SXRuntimeController {
     
     var binded: [SXRuntimeObject] {get set}
     var status: SXStatus {get set}
+    var recvFlag: Int32 { get set }
+    var sendFlag: Int32 { get set }
     var dataDelegate: SXRuntimeDataDelegate {get set}
 
-    func getData(flags: Int32) throws -> Data
+    func retrieveData(with flags: Int32) throws -> Data?
+
     mutating func start(completion: () -> ())
 }
 
@@ -98,80 +106,88 @@ extension SXQueue {
             }
         }
     
+    public mutating func inherit(from server: SXServer) {
+        if server.status != .running {
+            self.status = server.status
+        }
+        
+        if server.recvFlag != recvFlag {
+            recvFlag = server.recvFlag
+            self.recvFlag = recvFlag
+        }
+        
+        if self.server.sendFlag != sendFlag {
+            sendFlag = server.sendFlag
+            self.sendFlag = sendFlag
+        }
+    }
+    
     public mutating func start(completion: () -> ()) {
         self.status = .running
         
         var suspended = false;
-        var s = 0
-        
-        var cacheRecv = self.server.recvFlag
-        var cacheSend = self.server.sendFlag
-        
+        var proceed = false
+
         repeat {
             
-            if self.server.status != .running {
-                self.status = self.server.status
-            }
-            
-            if self.server.recvFlag != cacheRecv {
-                cacheRecv = server.recvFlag
-                self.recvFlag = cacheRecv
-            }
-            
-            if self.server.sendFlag != cacheSend {
-                cacheSend = server.sendFlag
-                self.sendFlag = cacheSend
-            }
-            
-            func handleData() {
-                do {
-                    let data = try self.getData(flags: self.recvFlag)
-                    let proceed = self.dataDelegate.didReceiveData(object: self, data: data)
-                    s = proceed ? data.length : 0
-                } catch {
-                    s = 0
-                    self.dataDelegate.didReceiveError?(object: self, err: error)
+            do {
+                inherit(from: self.server)
+                
+                func handleData() throws {
+                    if let data = try self.retrieveData(with: self.recvFlag) {
+                        proceed = self.dataDelegate.didReceiveData(object: self, data: data)
+                    } else {
+                        proceed = false
+                    }
                 }
-            }
-            
-            switch self.status {
-            case .running:
                 
-                handleData()
+                switch self.status {
+                    
+                case .running:
+                    try handleData()
+                    
+                case .resumming:
+                    self.status = .running
+                    self.statusDidChange(status: self.status)
+
+                case .suspended:
+                    if !suspended {
+                        self.statusDidChange(status: self.status)
+                    }
+                    suspended = true
+
+                    if let data = try retrieveData(with: 0) {
+                        #if swift(>=3)
+                        if (data.count == 0 || data.count == -1) { proceed = false }
+                        #else
+                        if (data.length == 0 || data.length == -1) { proceed = false }
+                        #endif
+                    } else {
+                        proceed = false
+                    }
                 
-            case .resumming:
-                self.status = .running
-                self.statusDidChange(status: self.status)
+                    switch self.status {
+                        
+                    case .shouldTerminate, .idle:
+                        proceed = false
+                        
+                    case .running, .resumming:
+                        try handleData()
+                        
+                    default:
+                        break
                 
-            case .suspended:
-                if !suspended {
+                    }
+                    
+                case .shouldTerminate, .idle:
                     self.statusDidChange(status: self.status)
                 }
-                suspended = true
                 
-                do {
-                    let data = try getData(flags: 0)
-                    #if swift(>=3)
-                    if (data.count == 0 || data.count == -1) { s = 0 }
-                    #else
-                    if (data.length == 0 || data.length == -1) { s = 0 }
-                    #endif
-                } catch {
-                    s = 0
-                    self.dataDelegate.didReceiveError?(object: self, err: error)
-                }
-            
-                switch self.status {
-                case .shouldTerminate, .idle:
-                    s = 0
-                case .running, .resumming: handleData()
-                default: break
-                }
-            case .shouldTerminate, .idle:
-                self.statusDidChange(status: self.status)
+            } catch {
+                proceed = false
+                self.dataDelegate.didReceiveError?(object: self, err: error)
             }
-            
-        } while (s > 0)
+        } while (proceed)
         
         completion()
     }

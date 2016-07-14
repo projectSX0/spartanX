@@ -157,7 +157,6 @@ public enum SXSocketAddress {
             sockaddr.sun_family = UInt8(AF_UNIX)
             sockaddr.sun_len = UInt8(sizeof(sockaddr_un.self))
             let cstr = address.cString(using: .utf8)!
-//            let UNIX_PATH_MAX = sizeof(sockaddr_un.self) - sizeof(sa_family_t.self) - sizeof(UInt8.self)
             strncpy(UnsafeMutablePointer<Int8>(getMutablePointer(&(sockaddr.sun_path))), cstr, UNIX_PATH_MAX)
             
             self = .UNIX(sockaddr)

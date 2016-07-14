@@ -38,6 +38,7 @@ public enum SXSocketError: ErrorProtocol {
     case setSockOpt(String)
     case bind(String)
     case connect(String)
+    case send(String)
     case recv(String)
     case listen(String)
 }

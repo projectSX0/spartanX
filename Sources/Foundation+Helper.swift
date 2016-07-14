@@ -32,8 +32,61 @@
 
 import Foundation
 
+extension Array {
+    private func combine<T: CustomStringConvertible>(strings: [T]) -> String {
+        var t = ""
+        for s in strings {
+            t += s.description
+        }
+        return t
+    }
+    
+    init(count: Int, initalizer: (index: Int) -> Element) {
+        self = [Element]()
+        for index in 0..<count {
+            self.append(initalizer(index: index))
+        }
+    }
+}
+
+extension String {
+    
+    public static func alignedText(strings: String..., spaces: [Int]) -> String {
+        let astr = strings.enumerated().map { (index, string) -> String in
+            var temp = string
+            let space_to_insert = spaces[index] - string.characters.count
+            for _ in 0 ..< space_to_insert {
+                temp.append(Character(" "))
+            }
+            return temp
+        }
+        return strings.combine(strings: astr)
+    }
+}
+
+extension Strideable {
+    mutating func decrement() {
+        self -= 1
+    }
+    
+    mutating func increment() {
+        self += 1
+    }
+}
+
 #if swift(>=3)
     public extension Data {
+        
+        var bytes: [UInt8] {
+            var a = [UInt8](repeating: 0, count: count)
+            self.copyBytes(to: &a, count: count)
+            return a
+        }
+        
+        var length: Int {
+            return count
+        }
+        
         public func findBytes(bytes b: UnsafeMutablePointer<Void>, offset: Int = 0, len: Int) -> Int? {
             if offset < 0 || len < 0 || self.count == 0 || len + offset > self.count
             { return nil }

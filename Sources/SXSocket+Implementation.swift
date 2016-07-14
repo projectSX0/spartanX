@@ -32,76 +32,48 @@
 
 import Foundation
 
-#if swift(>=3)
-    extension Data {
-        var bytes: [UInt8] {
-            var a = [UInt8](repeating: 0, count: count)
-            self.copyBytes(to: &a, count: count)
-            return a
-        }
-        
-        var length: Int {
-            return count
-        }
-    }
-#endif
+public extension SXLocal where Self : SXSocket {
 
-public protocol SXBindedSocket {
-    var address: SXSockaddr {get set}
-}
-
-public protocol SXSocketTypeProtocol {
-    var bufsize: Int {get set}
-    var port: in_port_t? {get set}
-}
-
-public protocol SXStreamProtocol : SXSocketTypeProtocol {
-    var address: SXSockaddr? {get set}
-}
-
-
-public protocol SXDGRAMProtocol : SXSocketTypeProtocol {
-    var addr: SXSockaddr? {get set}
-}
-
-
-public extension SXBindedSocket where Self : SXLocalSocket {
-    
     public func bind() throws {
-        var i: Int32 = 0
-        
+        var err: Int32 = 0
+
         var yes = true
+        
         if setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, UInt32(sizeof(Int32.self))) == -1 {
             throw SXSocketError.setSockOpt(String.errno)
         }
         
-        switch address {
-        case var .INET(sock):
-            i = Foundation.bind(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_in.self)))
-            
-        case var .INET6(sock):
-            i = Foundation.bind(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_in6.self)))
-            
-        case var .UNIX(sock):
-            i = Foundation.bind(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_un.self)))
+        guard let address = address else {
+            throw SXSocketError.bind("address is nil")
         }
-        
-        if i == -1 {
+
+        switch address {
+        case var .INET(addr):
+            err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(getpointer(&addr)), socklen_t(sizeof(sockaddr_in.self)))
+
+        case var .INET6(addr):
+            err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(getpointer(&addr)), socklen_t(sizeof(sockaddr_in6.self)))
+
+        case var .UNIX(addr):
+            err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(getpointer(&addr)), socklen_t(sizeof(sockaddr_un.self)))
+        }
+
+
+        if err == -1 {
             throw SXSocketError.bind(String.errno)
         }
     }
-    
+
     public func accept(bufsize: Int = 16384) throws -> SXRemoteSocket {
         var addr = sockaddr()
         var socklen = socklen_t()
         let fd = Foundation.accept(sockfd, &addr, &socklen)
         
         return try SXRemoteSocket(fd: fd,
-                                  domain: self.domain,
-                                  type: self.type,
-                                  protocol: self.`protocol`,
                                   addr: addr,
                                   len: socklen,
+                                  type: self.type,
+                                  protocol: self.`protocol`,
                                   bufsize: bufsize)
     }
     
@@ -112,86 +84,82 @@ public extension SXBindedSocket where Self : SXLocalSocket {
     }
 }
 
-public extension SXStreamProtocol where Self : SXSocket {
+extension SXSocket {
+    
+    public func close() {
+        _ = Darwin.close(self.sockfd)
+    }
+    
+    public mutating func connect(with address: SXSocketAddress) throws {
+        var i: Int32 = 0
+        
+        self.address = address
+        
+        if self.type != .stream {
+            throw SXSocketError.socket("connect only can use on stream socket")
+        }
+        
+        switch self.address! {
+        case var .INET(addr):
+            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(getpointer(&addr)), socklen_t(sizeof(sockaddr_in.self)))
+            
+        case var .INET6(addr):
+            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(getpointer(&addr)), socklen_t(sizeof(sockaddr_in6.self)))
+            
+        case var .UNIX(addr):
+            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(getpointer(&addr)), socklen_t(sizeof(sockaddr_un.self)))
+        }
+        
+        if i == -1 {
+            throw SXSocketError.connect(String.errno)
+        }
+    }
     
     public func receive(size: Int, flags: Int32) throws -> Data {
         #if swift(>=3)
-        var buffer = [UInt8](repeating: 0, count: size)
+            var buffer = [UInt8](repeating: 0, count: size)
         #else
-        var buffer = [UInt8](count: size, repeatedValue: 0)
+            var buffer = [UInt8](count: size, repeatedValue: 0)
         #endif
         let len = recv(sockfd, &buffer, size, flags)
         if len == -1 {throw SXSocketError.recv(String.errno)}
         #if swift(>=3)
-        return Data(bytes: buffer, count: len)
+            return Data(bytes: buffer, count: len)
         #else
-        return NSMutableData(bytes: buffer, length: len)
+            return NSMutableData(bytes: buffer, length: len)
         #endif
     }
-    
 
-    
-    public func send(data: Data, flags: Int32) {
-        _ = Foundation.send(sockfd, data.bytes, data.length, flags)
-    }
-}
-
-
-public extension SXStreamProtocol where Self : SXLocalSocket {
-    public func connect() throws {
-        var i: Int32 = 0
-        
-        switch self.address! {
-        case var .INET(sock):
-            
-            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_in.self)))
-            
-        case var .INET6(sock):
-            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_in6.self)))
-            
-        case var .UNIX(sock):
-            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(getpointer(&sock)), socklen_t(sizeof(sockaddr_un.self)))
-        }
-        
-        if i == -1 {
-            print(String.errno)
-            throw SXSocketError.connect(String.errno)
-        }
-    }
-}
-
-public extension SXDGRAMProtocol where Self : SXSocket {
     #if swift(>=3)
-    public func recvFrom(addr: SXSockaddr, flags: Int32 = 0) -> Data {
-        var addr_ = addr // since the expression var addr: SXSockaddr is not compatible with Swift 3
+    public func recvFrom(addr: SXSocketAddress, flags: Int32 = 0) -> Data {
+        var addr_ = addr // since the expression var addr: SXSocketAddrss is not compatible with Swift 3
         var socklen = addr.socklen
-      
+
         var buf = [UInt8](repeating: 0, count: bufsize)
 
         let len = recvfrom(sockfd, &buf, bufsize, flags, UnsafeMutablePointer<sockaddr>(getMutablePointer(&addr_)), &socklen)
-        
+
         return Data(bytes: buf, count: len)
     }
     #else
-    public func recvFrom(addr addr: SXSockaddr, flags: Int32 = 0) -> NSData {
-        var addr_ = addr // since the expression var addr: SXSockaddr is not compatible with Swift 3
+    public func recvFrom(addr addr: SXSocketAddress, flags: Int32 = 0) -> NSData {
+        var addr_ = addr // since the expression var addr: SXSocketAddrss is not compatible with Swift 3
         var socklen = addr.socklen
         var buf = [UInt8](count: bufsize, repeatedValue: 0)
-    
+
         let len = recvfrom(sockfd, &buf, bufsize, flags, UnsafeMutablePointer<sockaddr>(getMutablePointer(&addr_)), &socklen)
         return NSData(bytes: buf, length: len)
     }
     #endif
-    
-    public func sendTo(addr: SXSockaddr, data: Data, flags: Int32 = 0) {
+
+    public func sendTo(addr: SXSocketAddress, data: Data, flags: Int32 = 0) {
         var addr_ = addr
         sendto(sockfd, data.bytes, data.length, flags, UnsafeMutablePointer<sockaddr>(getMutablePointer(&addr_)), addr_.socklen)
     }
     
-
-    public func boardcast(port: in_port_t, data: Data, flags: Int32 = 0) throws {
-        let addr = try SXSockaddr.boardcastAddr(port: port)
-        sendTo(addr: addr, data: data, flags: flags)
+    public func send(data: Data, flags: Int32) throws {
+        if Foundation.send(sockfd, data.bytes, data.length, flags) == -1 {
+            throw SXSocketError.send("send: \(String.errno)")
+        }
     }
-
 }
