@@ -33,20 +33,20 @@
 import Foundation
 
 extension Array {
-    private func combine<T: CustomStringConvertible>(strings: [T]) -> String {
-        var t = ""
-        for s in strings {
-            t += s.description
-        }
-        return t
-    }
-    
     init(count: Int, initalizer: (index: Int) -> Element) {
         self = [Element]()
         for index in 0..<count {
             self.append(initalizer(index: index))
         }
     }
+}
+
+private func combine(strings: [String]) -> String {
+    var t = ""
+    for s in strings {
+        t += s
+    }
+    return t
 }
 
 extension String {
@@ -60,7 +60,7 @@ extension String {
             }
             return temp
         }
-        return strings.combine(strings: astr)
+        return combine(strings: astr)
     }
 }
 
@@ -79,7 +79,11 @@ extension Strideable {
         
         var bytes: [UInt8] {
             var a = [UInt8](repeating: 0, count: count)
+            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
             self.copyBytes(to: &a, count: count)
+            #elseif os(Linux) || os(FreeBSD)
+            self.getBytes(&a, length: count)
+            #endif
             return a
         }
         
@@ -109,7 +113,7 @@ extension Strideable {
     extension String {
         var cInt8String: [Int8]? {
             get {
-                guard let uint8string = self.cString(using: String.Encoding.ascii) else {return nil}
+                guard let uint8string = self.cString(using: .ascii) else {return nil}
                 return uint8string.map({Int8($0)})
             }
         }
@@ -125,7 +129,7 @@ extension Strideable {
         
         static var errno: String {
             let err = strerror(Foundation.errno)
-            return String(bytes: err!, len: Int(strlen(err)))
+            return String(bytes: err!, len: Int(strlen(err!)))
         }
     }
     
