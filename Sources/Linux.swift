@@ -9,8 +9,24 @@
 import Foundation
 
 #if os(Linux)
-public typealias Data = NSMutableData
+    public typealias Data = NSMutableData
 
+    public extension String {
+        public enum StringEncoding {
+            case ascii
+            case utf8
+            case utf16
+            
+            var raw: NSStringEncoding {
+                switch self {
+                case .utf8: return NSUTF8StringEncoding
+                case .utf16: return NSUTF16StringEncoding
+                default: return NSASCIIStringEncoding
+                }
+            }
+        }
+    }
+    
     public extension Data {
         
         public var count: Int {

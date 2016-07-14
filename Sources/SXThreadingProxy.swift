@@ -12,6 +12,8 @@ public protocol SXThreadingProxy {
     mutating func execute(block: () -> Void)
 }
 
+#if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+
 public struct GrandCentralDispatchQueue : SXThreadingProxy {
     public var queue: DispatchQueue
     
@@ -23,6 +25,8 @@ public struct GrandCentralDispatchQueue : SXThreadingProxy {
         queue.async(execute: block)
     }
 }
+    
+#endif
 
 public class SXThreadPool : SXThreadingProxy {
     public var numberOfThreads: Int
@@ -57,7 +61,11 @@ public class SXThread {
         }
     }
     
+    #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
     var thread: pthread_t?
+    #elseif os(Linux) || os(FreeBSD)
+    var thread: pthread_t = pthread_t()
+    #endif
     var queue = BlockQueue()
     
     public func execute(block: () -> Void) {
