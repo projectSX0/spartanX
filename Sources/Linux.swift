@@ -27,7 +27,7 @@ import Foundation
         }
         
         func cString(using encoding: String.Encoding) -> [CChar]? {
-            return self.cStringUsingEncoding(encoding.raw)
+            return self.cString(using encoding.raw)
         }
     }
     
