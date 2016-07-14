@@ -30,7 +30,6 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-import Darwin
 import Foundation
 
 public class SXStreamQueue: SXQueue {

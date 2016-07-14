@@ -217,7 +217,7 @@ import Foundation
         }
         
         static var errno: String {
-            let err = strerror(Darwin.errno)
+            let err = strerror(Foundation.errno)
             return String(bytes: err, len: Int(strlen(err)))
         }
     }
