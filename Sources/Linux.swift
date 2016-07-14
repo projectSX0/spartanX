@@ -9,9 +9,9 @@
 import Foundation
 
 #if os(Linux)
-    public typealias Data = NSMutableData
+    typealias Data = NSMutableData
 
-    public extension String {
+    extension String {
         public enum Encoding {
             case ascii
             case utf8
@@ -31,27 +31,27 @@ import Foundation
         }
     }
     
-    public extension Data {
+    extension Data {
         
     
-        public convenience init(bytes: [UInt8], count: Int) {
+        convenience init(bytes: [UInt8], count: Int) {
             var bytesCopy = bytes
             self.init(bytes: &bytesCopy, length: count)
         }
         
-        public var isEmpty: Bool {
+        var isEmpty: Bool {
             return self.length == 0
         }
         
-        public var count: Int {
+        var count: Int {
             return self.length
         }
-        public func findBytes(bytes b: UnsafeMutablePointer<Void>, offset: Int = 0, len: Int) -> Int? {
+        
+        func findBytes(bytes b: UnsafeMutablePointer<Void>, offset: Int = 0, len: Int) -> Int? {
             if offset < 0 || len < 0 || self.length == 0 || len + offset > self.length
             { return nil }
             
             var i = 0
-//            let mcmp = {memcmp(b, self.bytes.advancedBy(offset + i), len)}
              let mcmp = {memcmp(b,(self as NSData).bytes.advanced(by: offset + i), len)}
             
             while (mcmp() != 0) {
@@ -74,7 +74,7 @@ import Foundation
         }
     }
     
-    extension DataReader {
+    public extension DataReader {
         
         public mutating func rangeOfNextSegmentOfData(separatedBy bytes: [UInt8]) -> NSRange? {
             var bytes = bytes
@@ -92,7 +92,8 @@ import Foundation
             return NSMakeRange(begin, length)
         }
     }
-    extension DataReader {
+    
+    public extension DataReader {
         
         public mutating func segmentOfData(separatedBy bytes: [UInt8], atIndex count: Int) -> Data? {
             var bytes = bytes
@@ -115,7 +116,7 @@ import Foundation
         }
     }
     
-    extension DataReader {
+    public extension DataReader {
         
         public mutating func nextSegmentOfData(separatedBy bytes: [UInt8]) -> Data? {
             var bytes = bytes
@@ -130,7 +131,7 @@ import Foundation
         }
     }
     
-    extension DataReader {
+    public extension DataReader {
         
         public mutating func forallSegments(separatedBy bytes: [UInt8], handler: (Data) -> Bool) {
             var bytes = bytes
