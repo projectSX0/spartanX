@@ -29,6 +29,16 @@ import Foundation
     
     public extension Data {
         
+    
+        public convenience init(bytes: [UInt8], count: Int) {
+            var bytesCopy = bytes
+            self.init(bytes: &bytesCopy, length: count)
+        }
+        
+        public var isEmpty: Bool {
+            return self.length == 0
+        }
+        
         public var count: Int {
             return self.length
         }
