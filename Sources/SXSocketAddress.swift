@@ -49,13 +49,13 @@ public enum DNSLookupHint {
 extension sockaddr_in {
     init(port: in_port_t, addr: in_addr = in_addr(s_addr: 0)) {
         #if os(Linux)
-            self = sockaddr_in(sin_family: UInt8(AF_INET),
+            self = sockaddr_in(sin_family: sa_family_t(AF_INET),
                                sin_port: port,
                                sin_addr: in_addr(s_addr: 0),
                                sin_zero: (0, 0, 0, 0, 0, 0, 0, 0))
         #else
             self = sockaddr_in(sin_len: UInt8(sizeof(sockaddr_in.self)),
-                               sin_family: UInt8(AF_INET),
+                               sin_family: sa_family_t(AF_INET),
                                sin_port: port,
                                sin_addr: in_addr(s_addr:0),
                                sin_zero: (0, 0, 0, 0, 0, 0, 0, 0))
@@ -66,14 +66,14 @@ extension sockaddr_in {
 extension sockaddr_in6 {
     init(port: in_port_t, addr: in6_addr = in6addr_any) {
         #if os(Linux)
-            self = sockaddr_in6(sin6_family: UInt8(AF_INET6),
+            self = sockaddr_in6(sin6_family: sa_family_t(AF_INET6),
                                 sin6_port: port,
                                 sin6_flowinfo: 0,
                                 sin6_addr: addr,
                                 sin6_scope_id: 0)
         #else
             self = sockaddr_in6(sin6_len: UInt8(sizeof(sockaddr_in6.self)),
-                                sin6_family: UInt8(AF_INET6),
+                                sin6_family: sa_family_t(AF_INET6),
                                 sin6_port: port,
                                 sin6_flowinfo: 0,
                                 sin6_addr: addr,
