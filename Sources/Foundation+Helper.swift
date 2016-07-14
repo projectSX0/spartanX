@@ -77,17 +77,17 @@ extension Strideable {
 #if swift(>=3)
     public extension Data {
         
+        #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+        
         var bytes: [UInt8] {
             var a = [UInt8](repeating: 0, count: count)
             #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-            self.copyBytes(to: &a, count: count)
+                self.copyBytes(to: &a, count: count)
             #elseif os(Linux) || os(FreeBSD)
-            self.getBytes(&a, length: count)
+                self.getBytes(&a, length: count)
             #endif
             return a
         }
-        
-        #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
         
         var length: Int {
             return count

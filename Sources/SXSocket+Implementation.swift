@@ -87,7 +87,7 @@ public extension SXLocal where Self : SXSocket {
 extension SXSocket {
     
     public func close() {
-        _ = Darwin.close(self.sockfd)
+        _ = Foundation.close(self.sockfd)
     }
     
     public mutating func connect(with address: SXSocketAddress) throws {
