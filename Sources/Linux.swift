@@ -12,7 +12,7 @@ import Foundation
     public typealias Data = NSMutableData
 
     public extension String {
-        public enum StringEncoding {
+        public enum Encoding {
             case ascii
             case utf8
             case utf16
@@ -24,6 +24,10 @@ import Foundation
                 default: return NSASCIIStringEncoding
                 }
             }
+        }
+        
+        func cString(using encoding: String.Encoding) -> [CChar] {
+            return self.cStringUsingEncoding(encoding.raw)!
         }
     }
     
@@ -107,7 +111,7 @@ import Foundation
             if holder == nil {
                 return nil
             }
-            return origin.ssubdata(with:holder!).mutableCopy() as? Data
+            return origin.subdata(with:holder!).mutableCopy() as? Data
         }
     }
     

@@ -77,7 +77,13 @@ public class SXThread {
     
     init() {
         pthread_create(&thread, nil, { (pointer) -> UnsafeMutablePointer<Void>? in
+            
+            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
             let blockQueue = UnsafeMutablePointer<BlockQueue>(pointer).pointee
+            #else
+            let blockQueue = UnsafeMutablePointer<BlockQueue>(pointer!).pointee
+            #endif
+            
             while true {
                 while blockQueue.count > 0 {
                     blockQueue.blocks.first!()
