@@ -48,23 +48,24 @@ import LinuxFoundation
 //            return self.length
 //        }
 //        
-//        func findBytes(bytes b: UnsafeMutablePointer<Void>, offset: Int = 0, len: Int) -> Int? {
-//            if offset < 0 || len < 0 || self.length == 0 || len + offset > self.length
-//            { return nil }
-//            
-//            var i = 0
-//             let mcmp = {memcmp(b,(self as NSData).bytes.advanced(by: offset + i), len)}
-//            
-//            while (mcmp() != 0) {
-//                if i + offset == self.length {
-//                    break
-//                }
-//                i += 1
-//            }
-//            
-//            return i + offset
-//        }
-//    }
+    public extension Data {
+        public func findBytes(bytes b: UnsafeMutablePointer<Void>, offset: Int = 0, len: Int) -> Int? {
+            if offset < 0 || len < 0 || self.length == 0 || len + offset > self.length
+            { return nil }
+            
+            var i = 0
+             let mcmp = {memcmp(b,(self as NSData).bytes.advanced(by: offset + i), len)}
+            
+            while (mcmp() != 0) {
+                if i + offset == self.length {
+                    break
+                }
+                i += 1
+            }
+            
+            return i + offset
+        }
+    }
 
     public struct DataReader {
         public var origin: Data
