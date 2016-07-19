@@ -80,6 +80,7 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
     public init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, dataDelegate: SXRuntimeDataDelegate) throws {
         self.status = .idle
         self.socket = try SXLocalSocket(port: port, domain: domain, type: .stream, protocol: `protocol`, bufsize: bufsize)
+        try self.socket.bind()
         self.port = port
         self.backlog = backlog
         self.maxGuest = maxGuest
@@ -92,6 +93,7 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
     public init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, handler: (object: SXQueue, data: Data) -> Bool, errHandler: ((object: SXRuntimeObject, err: ErrorProtocol) -> ())? = nil) throws {
         self.status = .idle
         self.socket = try SXLocalSocket(port: port, domain: domain, type: .stream, protocol: `protocol`, bufsize: bufsize)
+        try self.socket.bind()
         self.port = port
         self.backlog = backlog
         self.maxGuest = maxGuest
