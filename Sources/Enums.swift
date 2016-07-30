@@ -31,7 +31,6 @@
 //
 
 import Foundation
-import LinuxFoundation
 
 public enum SXSocketError: ErrorProtocol {
     case nonImplementedDomain

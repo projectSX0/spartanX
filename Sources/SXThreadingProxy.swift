@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import LinuxFoundation
 
 public protocol SXThreadingProxy {
     mutating func execute(block: () -> Void)

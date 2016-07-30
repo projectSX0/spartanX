@@ -31,7 +31,6 @@
 //
 
 import Foundation
-import LinuxFoundation
 
 #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
 public let UNIX_PATH_MAX = 104

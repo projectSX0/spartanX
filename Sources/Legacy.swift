@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import LinuxFoundation
 
 #if !swift(>=3)
     extension UnsafeMutablePointer {

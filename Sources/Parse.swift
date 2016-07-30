@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import LinuxFoundation
 
 #if swift(>=3)
 #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)

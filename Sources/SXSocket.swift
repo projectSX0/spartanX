@@ -31,7 +31,6 @@
 //
 
 import Foundation
-import LinuxFoundation
 
 public protocol SXSocket {
     var sockfd: Int32 { get set }
