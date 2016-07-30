@@ -97,7 +97,9 @@ extension Strideable {
             
             var i = 0
         
-            let mcmp = {memcmp(b,(self as NSData).bytes.advanced(by: offset + i), len)}
+//            let mcmp = {memcmp(b,(self as NSData).bytes.advanced(by: offset + i), len)}
+            let mcmp = { self.withUnsafeBytes { memcmp(b, $0.advanced(by: offset + i), len) }}
+            
             
             while (mcmp() != 0) {
                 if i + offset == self.count {
