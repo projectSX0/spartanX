@@ -75,7 +75,7 @@ public class SXThread {
         pthread_mutex_unlock(queue.mutexPointer)
     }
     
-    init() {
+    public init() {
         pthread_create(&thread, nil, { (pointer) -> UnsafeMutablePointer<Void>? in
             
             #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
