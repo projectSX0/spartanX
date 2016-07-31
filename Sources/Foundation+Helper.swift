@@ -133,6 +133,7 @@ extension Strideable {
         static var errno: String {
             let err = strerror(Foundation.errno)
             return String(bytes: err!, len: Int(strlen(err!)))
+//            pointer(of: &<#T##T#>)
         }
     }
     

@@ -66,16 +66,28 @@ public class SXThread {
     #elseif os(Linux) || os(FreeBSD)
     var thread: pthread_t = pthread_t()
     #endif
+    
     var queue = BlockQueue()
     
     public func execute(block: () -> Void) {
         pthread_mutex_lock(queue.mutexPointer)
         queue.blocks.append(block)
         queue.count += 1
+        if queue.blocks.count == 1 {
+            pthread_kill(thread!, SIGINT)
+        }
         pthread_mutex_unlock(queue.mutexPointer)
     }
     
     public init() {
+        
+        #if os(Linux)
+        var blk_sigs = sigset_t()
+        sigemptyset(&blk_sigs)
+        sigaddset(&blk_sigs, SIGUSR1)
+        pthread_sigmask(SIG_BLOCK, &blk_sigs, nil)
+        #endif
+        
         pthread_create(&thread, nil, { (pointer) -> UnsafeMutablePointer<Void>? in
             
             #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
@@ -83,6 +95,11 @@ public class SXThread {
             #else
             let blockQueue = UnsafeMutablePointer<BlockQueue>(pointer!).pointee
             #endif
+            
+            var signals = sigset_t()
+            var caught: Int32 = 0
+            sigemptyset(&signals)
+            sigaddset(&signals, SIGUSR1)
             
             while true {
                 while blockQueue.count > 0 {
@@ -92,7 +109,9 @@ public class SXThread {
                     blockQueue.count -= 1
                     pthread_mutex_unlock(blockQueue.mutexPointer)
                 }
+            sigwait(&signals, &caught)
             }
-            }, UnsafeMutablePointer<Void>(mutablePointer(of: &self.queue)))
+            
+        }, UnsafeMutablePointer<Void>(mutablePointer(of: &self.queue)))
     }
 }
