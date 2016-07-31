@@ -75,9 +75,9 @@ public class SXThread {
         queue.count += 1
         if queue.blocks.count == 1 {
             #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-            pthread_kill(thread!, SIGINT)
+            pthread_kill(thread!, SIGUSR1)
             #else
-            pthread_kill(thread, SIGINT)
+            pthread_kill(thread, SIGUSR1)
             #endif
         }
         pthread_mutex_unlock(queue.mutexPointer)
