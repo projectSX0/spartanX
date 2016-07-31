@@ -82,12 +82,12 @@ public struct SXLocalSocket : SXSocket, SXLocal {
         
         self.address = addr
         switch addr {
-        case .INET:
-            self.domain = .INET
-        case .INET6:
-            self.domain = .INET6
-        case .UNIX:
-            self.domain = .UNIX
+        case .inet:
+            self.domain = .inet
+        case .inet6:
+            self.domain = .inet6
+        case .unix:
+            self.domain = .unix
         }
         self.port = port
         self.`protocol` = `protocol`
@@ -117,8 +117,9 @@ public struct SXRemoteSocket : SXSocket, SXRemote {
         
         var caddr = sockaddr()
         var len = socklen_t()
-        getsockname(fd, &caddr, &len)
         
+        getpeername(fd, &caddr, &len)
+
         self.address = try SXSocketAddress(caddr, socklen: len)
         self.sockfd = fd
         self.domain = domain
@@ -144,11 +145,11 @@ public struct SXRemoteSocket : SXSocket, SXRemote {
         
         switch Int(len) {
         case sizeof(sockaddr_in.self):
-            self.domain = .INET
+            self.domain = .inet
         case sizeof(sockaddr_in6.self):
-            self.domain = .INET6
+            self.domain = .inet6
         case sizeof(sockaddr_un.self):
-            self.domain = .UNIX
+            self.domain = .unix
         default:
             throw SXSocketError.socket("Unknown domain")
         }

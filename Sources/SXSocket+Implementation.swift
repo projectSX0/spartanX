@@ -48,13 +48,13 @@ public extension SXLocal where Self : SXSocket {
         }
 
         switch address {
-        case var .INET(addr):
+        case var .inet(addr):
             err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_in.self)))
 
-        case var .INET6(addr):
+        case var .inet6(addr):
             err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_in6.self)))
 
-        case var .UNIX(addr):
+        case var .unix(addr):
             err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_un.self)))
         }
 
@@ -68,7 +68,7 @@ public extension SXLocal where Self : SXSocket {
         var addr = sockaddr()
         var socklen = socklen_t()
         let fd = Foundation.accept(sockfd, &addr, &socklen)
-        
+        getpeername(fd, &addr, &socklen)
         return try SXRemoteSocket(fd: fd,
                                   addr: addr,
                                   len: socklen,
@@ -100,13 +100,13 @@ extension SXSocket {
         }
         
         switch self.address! {
-        case var .INET(addr):
+        case var .inet(addr):
             i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_in.self)))
             
-        case var .INET6(addr):
+        case var .inet6(addr):
             i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_in6.self)))
             
-        case var .UNIX(addr):
+        case var .unix(addr):
             i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_un.self)))
         }
         
