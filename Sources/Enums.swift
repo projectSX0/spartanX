@@ -32,7 +32,10 @@
 
 import Foundation
 
-public enum SXSocketError: ErrorProtocol {
+#if os(Linux) || os(FreeBSD)
+public typealias Error = ErrorProtocol
+#endif
+public enum SXSocketError: Error {
     case nonImplementedDomain
     case socket(String)
     case setSockOpt(String)
@@ -43,7 +46,7 @@ public enum SXSocketError: ErrorProtocol {
     case listen(String)
 }
 
-public enum SXAddrError: ErrorProtocol {
+public enum SXAddrError: Error {
     case getAddrInfo(String)
     case unknownDomain
 }

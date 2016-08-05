@@ -61,7 +61,7 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
     public var delegate: SXStreamServerDelegate?
 
     public var didReceiveData: (object: SXQueue, data: Data) -> Bool
-    public var didReceiveError: ((object: SXRuntimeObject, err: ErrorProtocol) -> ())?
+    public var didReceiveError: ((object: SXRuntimeObject, err: Error) -> ())?
     
     public var recvFlag: Int32 = 0
     public var sendFlag: Int32 = 0
@@ -92,7 +92,7 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
         try self.init(port: port, domain: domain, protocol: `protocol`, maxGuest: maxGuest, backlog: backlog, bufsize: bufsize, handler: handler, errHandler: nil)
     }
     
-    public init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, handler: (object: SXQueue, data: Data) -> Bool, errHandler: ((object: SXRuntimeObject, err: ErrorProtocol) -> ())? = nil) throws {
+    public init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, handler: (object: SXQueue, data: Data) -> Bool, errHandler: ((object: SXRuntimeObject, err: Error) -> ())? = nil) throws {
         self.status = .idle
         self.socket = try SXLocalSocket(port: port, domain: domain, type: .stream, protocol: `protocol`, bufsize: bufsize)
         try self.socket.bind()

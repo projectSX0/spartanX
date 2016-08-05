@@ -60,7 +60,7 @@ public protocol SXRuntimeBasicDelegate {
 
 public protocol SXRuntimeDataDelegate {
     var didReceiveData: (object: SXQueue, data: Data) -> Bool {get set}
-    var didReceiveError: ((object: SXRuntimeObject, err: ErrorProtocol) -> ())? {get set}
+    var didReceiveError: ((object: SXRuntimeObject, err: Error) -> ())? {get set}
 }
 
 public protocol SXStreamRuntimeDelegate {
