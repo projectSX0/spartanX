@@ -107,17 +107,17 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
 
     public func start() {
         self.start(listenQueue: {
-            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+//            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
             return GrandCentralDispatchQueue(DispatchQueue.global())
-            #elseif os(Linux) || os(FreeBSD)
-            return SXThreadPool.default
-            #endif
+//            #elseif os(Linux) || os(FreeBSD)
+//            return SXThreadPool.default
+//            #endif
             }, operateQueue: {
-            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+//            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
                 return GrandCentralDispatchQueue(DispatchQueue.global())
-            #elseif os(Linux) || os(FreeBSD)
-                return SXThreadPool.default
-            #endif
+//            #elseif os(Linux) || os(FreeBSD)
+//                return SXThreadPool.default
+//            #endif
             }
         )
     }

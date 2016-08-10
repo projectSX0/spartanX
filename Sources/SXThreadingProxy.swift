@@ -8,13 +8,26 @@
 
 import Foundation
 
+#if os(Linux) || os(FreeBSD)
+public typealias DispatchQueue = dispatch_queue_t
+    
+extension DispatchQueue {
+    public func async(execute block: () -> Void) {
+        dispatch_async(self, block)
+    }
+    
+    public static func global(_ qos: dispatch_queue_priority_t = DISPATCH_QUEUE_PRIORITY_DEFAULT) -> DispatchQueue {
+        return dispatch_get_global_queue(qos, 0)
+    }
+}
+#endif
+
 public protocol SXThreadingProxy {
     mutating func execute(block: () -> Void)
 }
 
-#if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-
 public struct GrandCentralDispatchQueue : SXThreadingProxy {
+
     public var queue: DispatchQueue
     
     public init(_ queue: DispatchQueue) {
@@ -25,8 +38,6 @@ public struct GrandCentralDispatchQueue : SXThreadingProxy {
         queue.async(execute: block)
     }
 }
-    
-#endif
 
 public class SXThreadPool : SXThreadingProxy {
     public var numberOfThreads: Int
