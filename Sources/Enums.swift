@@ -32,9 +32,6 @@
 
 import Foundation
 
-#if os(Linux) || os(FreeBSD)
-public typealias Error = ErrorProtocol
-#endif
 public enum SXSocketError: Error {
     case nonImplementedDomain
     case socket(String)

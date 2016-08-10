@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Dispatch
 
 #if os(Linux) || os(FreeBSD)
 public typealias DispatchQueue = dispatch_queue_t
