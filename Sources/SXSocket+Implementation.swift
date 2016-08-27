@@ -31,6 +31,7 @@
 //
 
 import Foundation
+import CKit
 
 public extension SXLocal where Self : SXSocket {
 

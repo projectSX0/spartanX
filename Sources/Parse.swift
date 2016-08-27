@@ -9,7 +9,6 @@
 import Foundation
 
 #if swift(>=3)
-//#if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
 public struct DataReader {
     public var origin: Data
     public var currentOffset: Int = 0

@@ -103,8 +103,6 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
         self.didReceiveData = handler
     }
     
-    #if swift(>=3)
-
     public func start() {
         self.start(listenQueue: {
 //            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
@@ -184,73 +182,4 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
             }
         }
     }
-    #else
-    public func start(listenQueue: dispatch_queue_priority_t, operateQueue: dispatch_queue_priority_t) {
-        self.start({dispatch_get_global_queue(listenQueue, 0)}, operatingQueue: {dispatch_get_global_queue(operateQueue, 0)})
-    }
-    
-    public func start() {
-        self.start(DISPATCH_QUEUE_PRIORITY_DEFAULT, operateQueue: DISPATCH_QUEUE_PRIORITY_DEFAULT)
-    }
-    
-    
-    public func start(listeningQueue: (() -> dispatch_queue_t), operatingQueue: (()->dispatch_queue_t)) {
-
-        dispatch_async(listeningQueue()) {
-            self.status = .running
-            var count = 0
-            do {
-                while self.status != .shouldTerminate {
-                
-                    try self.socket.listen(self.backlog)
-                    
-                    if self.status == .shouldTerminate {
-                        break
-                    } else if self.status == .suspended {
-                        continue
-                    }
-
-                    do {
-
-                        let socket = try SXRemoteStreamSocket(socket: try self.socket.accept(bufsize: self.bufsize))
-                        if count >= self.maxGuest {
-                            count += 1
-                            continue
-                        }
-
-                        if let handler = self.delegate?.serverShouldConnect(self, withSocket: socket) {
-                            if !handler {
-                                socket.close()
-                                continue
-                            }
-                        }
-
-                        var queue: SXStreamQueue = SXStreamQueue(server: self, socket: socket, method: self.method)
-                        
-                        queue.delegate = self.delegate
-                        
-                        dispatch_async(operatingQueue()) {
-                            queue.start({
-                                queue.close()
-                                queue.delegate?.didDisconnect(queue, withSocket: queue.socket)
-                                count -= 1
-                            })
-                        }
-
-                    } catch {
-                        self.didReceiveError?(self, err: error)
-                        continue
-                    }
-                }
-                
-                self.status = .idle
-                self.close()
-                self.delegate?.didKill?(self)
-                
-            } catch {
-                self.didReceiveError?(self, err: error)
-            }
-        }
-    }
-    #endif
 }
