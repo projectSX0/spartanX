@@ -8,7 +8,7 @@
 
 import Foundation
 import CKit
-
+/*
 #if os(Linux) || os(FreeBSD)
 public typealias DispatchQueue = dispatch_queue_t
     
@@ -22,7 +22,7 @@ extension DispatchQueue {
     }
 }
 #endif
-
+*/
 public protocol SXThreadingProxy {
     mutating func execute(block: @escaping () -> Void)
 }
