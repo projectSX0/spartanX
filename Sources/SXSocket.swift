@@ -128,7 +128,7 @@ public struct SXRemoteSocket : SXSocket, SXRemote {
         self.bufsize = bufsize
         var yes = 1
         #if os(FreeBSD) || os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-        setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &yes, UInt32(sizeof(Int32.self)))
+        setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &yes, UInt32(MemoryLayout<Int32>.size))
         #elseif os(Linux)
         signal(SIGPIPE, SIG_IGN)
         #endif
@@ -144,11 +144,11 @@ public struct SXRemoteSocket : SXSocket, SXRemote {
         self.sockfd = fd
         
         switch Int(len) {
-        case sizeof(sockaddr_in.self):
+        case MemoryLayout<sockaddr_in>.size:
             self.domain = .inet
-        case sizeof(sockaddr_in6.self):
+        case MemoryLayout<sockaddr_in6>.size:
             self.domain = .inet6
-        case sizeof(sockaddr_un.self):
+        case MemoryLayout<sockaddr_un>.size:
             self.domain = .unix
         default:
             throw SXSocketError.socket("Unknown domain")

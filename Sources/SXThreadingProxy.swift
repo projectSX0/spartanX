@@ -7,13 +7,13 @@
 //
 
 import Foundation
-import Dispatch
+import CKit
 
 #if os(Linux) || os(FreeBSD)
 public typealias DispatchQueue = dispatch_queue_t
     
 extension DispatchQueue {
-    public func async(execute block: () -> Void) {
+    public func async(execute block: @escaping () -> Void) {
         dispatch_async(self, block)
     }
     
@@ -24,7 +24,7 @@ extension DispatchQueue {
 #endif
 
 public protocol SXThreadingProxy {
-    mutating func execute(block: () -> Void)
+    mutating func execute(block: @escaping () -> Void)
 }
 
 public struct GrandCentralDispatchQueue : SXThreadingProxy {
@@ -35,7 +35,7 @@ public struct GrandCentralDispatchQueue : SXThreadingProxy {
         self.queue = queue
     }
     
-    public func execute(block: () -> Void) {
+    public func execute(block: @escaping () -> Void) {
         queue.async(execute: block)
     }
 }
@@ -46,7 +46,7 @@ public class SXThreadPool : SXThreadingProxy {
     
     public static let `default` = SXThreadPool(nthreads: 100)
     
-    public func execute(block: ()->Void) {
+    public func execute(block: @escaping ()->Void) {
         threads.sorted{ $0.queue.count < $1.queue.count }.first!.execute(block: block)
     }
     
@@ -81,7 +81,7 @@ public class SXThread {
     
     var queue = BlockQueue()
     
-    public func execute(block: () -> Void) {
+    public func execute(block: @escaping () -> Void) {
         pthread_mutex_lock(queue.mutexPointer)
         queue.blocks.append(block)
         queue.count += 1
@@ -104,12 +104,12 @@ public class SXThread {
         pthread_sigmask(SIG_BLOCK, &blk_sigs, nil)
         #endif
         
-        pthread_create(&thread, nil, { (pointer) -> UnsafeMutablePointer<Void>? in
+        pthread_create(&thread, nil, { (pointer) -> UnsafeMutableRawPointer? in
             
             #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-            let blockQueue = UnsafeMutablePointer<BlockQueue>(pointer).pointee
+            let blockQueue = pointer.cast(to: BlockQueue.self).pointee
             #else
-            let blockQueue = UnsafeMutablePointer<BlockQueue>(pointer!).pointee
+            let blockQueue = pointer!.cast(to: BlockQueue.self).pointee
             #endif
             
             var signals = sigset_t()
@@ -128,6 +128,6 @@ public class SXThread {
             sigwait(&signals, &caught)
             }
             
-        }, UnsafeMutablePointer<Void>(mutablePointer(of: &self.queue)))
+        }, UnsafeMutableRawPointer(mutablePointer(of: &self.queue)))
     }
 }

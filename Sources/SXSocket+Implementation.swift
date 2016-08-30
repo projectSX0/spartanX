@@ -40,7 +40,7 @@ public extension SXLocal where Self : SXSocket {
 
         var yes = true
         
-        if setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, UInt32(sizeof(Int32.self))) == -1 {
+        if setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, UInt32(MemoryLayout<Int32>.size)) == -1 {
             throw SXSocketError.setSockOpt(String.errno)
         }
         
@@ -50,13 +50,13 @@ public extension SXLocal where Self : SXSocket {
 
         switch address {
         case var .inet(addr):
-            err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_in.self)))
+            err = Foundation.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_in>.size))
 
         case var .inet6(addr):
-            err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_in6.self)))
+            err = Foundation.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_in6>.size))
 
         case var .unix(addr):
-            err = Foundation.bind(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_un.self)))
+            err = Foundation.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_un>.size))
         }
 
 
@@ -102,13 +102,13 @@ extension SXSocket {
         
         switch self.address! {
         case var .inet(addr):
-            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_in.self)))
+            i = Foundation.connect(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_in>.size))
             
         case var .inet6(addr):
-            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_in6.self)))
+            i = Foundation.connect(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_in6>.size))
             
         case var .unix(addr):
-            i = Foundation.connect(sockfd, UnsafePointer<sockaddr>(pointer(of: &addr)), socklen_t(sizeof(sockaddr_un.self)))
+            i = Foundation.connect(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_un>.size))
         }
         
         if i == -1 {
@@ -117,45 +117,31 @@ extension SXSocket {
     }
     
     public func receive(size: Int, flags: Int32) throws -> Data {
-        #if swift(>=3)
-            var buffer = [UInt8](repeating: 0, count: size)
-        #else
-            var buffer = [UInt8](count: size, repeatedValue: 0)
-        #endif
+        
+        var buffer = [UInt8](repeating: 0, count: size)
+        
         let len = recv(sockfd, &buffer, size, flags)
-        if len == -1 {throw SXSocketError.recv(String.errno)}
-        #if swift(>=3)
-            return Data(bytes: buffer, count: len)
-        #else
-            return NSMutableData(bytes: buffer, length: len)
-        #endif
+        if len == -1 {
+            throw SXSocketError.recv(String.errno)
+        }
+        
+        return Data(bytes: buffer, count: len)
     }
 
-    #if swift(>=3)
     public func recvFrom(addr: SXSocketAddress, flags: Int32 = 0) -> Data {
         var addr_ = addr // since the expression var addr: SXSocketAddrss is not compatible with Swift 3
         var socklen = addr.socklen
 
         var buf = [UInt8](repeating: 0, count: bufsize)
 
-        let len = recvfrom(sockfd, &buf, bufsize, flags, UnsafeMutablePointer<sockaddr>(mutablePointer(of: &addr_)), &socklen)
+        let len = recvfrom(sockfd, &buf, bufsize, flags, mutablePointer(of: &addr_).cast(to: sockaddr.self), &socklen)
 
         return Data(bytes: buf, count: len)
     }
-    #else
-    public func recvFrom(addr addr: SXSocketAddress, flags: Int32 = 0) -> NSData {
-        var addr_ = addr // since the expression var addr: SXSocketAddrss is not compatible with Swift 3
-        var socklen = addr.socklen
-        var buf = [UInt8](count: bufsize, repeatedValue: 0)
-
-        let len = recvfrom(sockfd, &buf, bufsize, flags, UnsafeMutablePointer<sockaddr>(getMutablePointer(&addr_)), &socklen)
-        return NSData(bytes: buf, length: len)
-    }
-    #endif
 
     public func sendTo(addr: SXSocketAddress, data: Data, flags: Int32 = 0) {
         var addr_ = addr
-        sendto(sockfd, data.bytes, data.length, flags, UnsafeMutablePointer<sockaddr>(mutablePointer(of: &addr_)), addr_.socklen)
+        sendto(sockfd, data.bytes, data.length, flags, mutablePointer(of: &addr_).cast(to: sockaddr.self), addr_.socklen)
     }
     
     public func send(data: Data, flags: Int32) throws {

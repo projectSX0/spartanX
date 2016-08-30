@@ -60,19 +60,19 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
 
     public var delegate: SXStreamServerDelegate?
 
-    public var didReceiveData: (object: SXQueue, data: Data) -> Bool
-    public var didReceiveError: ((object: SXRuntimeObject, err: Error) -> ())?
+    public var didReceiveData: (_ object: SXQueue, _ data: Data) -> Bool
+    public var didReceiveError: ((_ object: SXRuntimeObject, _ err: Error) -> ())?
     
     public var recvFlag: Int32 = 0
     public var sendFlag: Int32 = 0
     
     public func statusDidChange(status: SXStatus) {
         guard let delegate = self.delegate else {return}
-        delegate.didChangeStatus?(object: self, status: status)
+        delegate.didChangeStatus?(self, status)
     }
     
     public func close() {
-        self.delegate?.didKill?(server: self)
+        self.delegate?.didKill?(self)
         self.socket.close()
     }
     
@@ -88,11 +88,11 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
         self.didReceiveError = dataDelegate.didReceiveError
     }
     
-    public convenience init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, handler: (object: SXQueue, data: Data) -> Bool) throws {
+    public convenience init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, handler: @escaping (_ object: SXQueue, _ data: Data) -> Bool) throws {
         try self.init(port: port, domain: domain, protocol: `protocol`, maxGuest: maxGuest, backlog: backlog, bufsize: bufsize, handler: handler, errHandler: nil)
     }
     
-    public init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, handler: (object: SXQueue, data: Data) -> Bool, errHandler: ((object: SXRuntimeObject, err: Error) -> ())? = nil) throws {
+    public init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, handler: @escaping (_ object: SXQueue, _ data: Data) -> Bool, errHandler: ((_ object: SXRuntimeObject, _ err: Error) -> ())? = nil) throws {
         self.status = .idle
         self.socket = try SXLocalSocket(port: port, domain: domain, type: .stream, protocol: `protocol`, bufsize: bufsize)
         try self.socket.bind()
@@ -105,17 +105,17 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
     
     public func start() {
         self.start(listenQueue: {
-//            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
             return GrandCentralDispatchQueue(DispatchQueue.global())
-//            #elseif os(Linux) || os(FreeBSD)
-//            return SXThreadPool.default
-//            #endif
+            #elseif os(Linux) || os(FreeBSD)
+            return SXThreadPool.default
+            #endif
             }, operateQueue: {
-//            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
                 return GrandCentralDispatchQueue(DispatchQueue.global())
-//            #elseif os(Linux) || os(FreeBSD)
-//                return SXThreadPool.default
-//            #endif
+            #elseif os(Linux) || os(FreeBSD)
+                return SXThreadPool.default
+            #endif
             }
         )
     }
@@ -146,7 +146,7 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
                             continue
                         }
                         
-                        if let handler = self.delegate?.shouldConnect?(server: self, withSocket: socket) {
+                        if let handler = self.delegate?.shouldConnect?(self, socket) {
                             if !handler {
                                 socket.close()
                                 continue
@@ -163,22 +163,22 @@ public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
                         operateQueue.execute {
                             queue.start(completion: {
                                 queue.close()
-                                queue.delegate?.didDisconnect?(object: queue, withSocket: queue.socket)
+                                queue.delegate?.didDisconnect?(queue, queue.socket)
                                 count -= 1
                             })
                         }
                         
                     } catch {
-                        self.didReceiveError?(object: self, err: error)
+                        self.didReceiveError?(self, error)
                         continue
                     }
                 }
                 
                 self.status = .idle
                 self.close()
-                self.delegate?.didKill?(server: self)
+                self.delegate?.didKill?(self)
             } catch {
-                self.didReceiveError?(object: self, err: error)
+                self.didReceiveError?(self, error)
             }
         }
     }

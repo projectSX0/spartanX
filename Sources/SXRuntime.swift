@@ -55,25 +55,25 @@ public protocol SXRuntimeController {
 }
 
 public protocol SXRuntimeBasicDelegate {
-    var didChangeStatus: ((object: SXRuntimeObject, status: SXStatus) -> ())? {get set}
+    var didChangeStatus: ((_ object: SXRuntimeObject, _ status: SXStatus) -> ())? {get set}
 }
 
 public protocol SXRuntimeDataDelegate {
-    var didReceiveData: (object: SXQueue, data: Data) -> Bool {get set}
-    var didReceiveError: ((object: SXRuntimeObject, err: Error) -> ())? {get set}
+    var didReceiveData: (_ object: SXQueue, _ data: Data) -> Bool {get set}
+    var didReceiveError: ((_ object: SXRuntimeObject, _ err: Error) -> ())? {get set}
 }
 
 public protocol SXStreamRuntimeDelegate {
-    var didConnect: ((object: SXRuntimeObject, withSocket: SXSocket) -> ())? {get set}
-    var didDisconnect: ((object: SXRuntimeObject, withSocket: SXSocket) -> ())? {get set}
-    var willKill: ((object: SXRuntimeObject) -> ())? {get set}
+    var didConnect: ((_ object: SXRuntimeObject, _ withSocket: SXSocket) -> ())? {get set}
+    var didDisconnect: ((_ object: SXRuntimeObject, _ withSocket: SXSocket) -> ())? {get set}
+    var willKill: ((_ object: SXRuntimeObject) -> ())? {get set}
 }
 
 
 public protocol SXServerDelegate: SXRuntimeBasicDelegate {
-    var shouldConnect: ((server: SXServer, withSocket: SXSocket) -> Bool)? {get set}
-    var didStart: ((server: SXServer) -> ())? {get set}
-    var didKill: ((server: SXServer) -> ())? {get set}
+    var shouldConnect: ((_ server: SXServer, _ withSocket: SXSocket) -> Bool)? {get set}
+    var didStart: ((_ server: SXServer) -> ())? {get set}
+    var didKill: ((_ server: SXServer) -> ())? {get set}
 }
 
 public protocol SXStreamServerDelegate : SXServerDelegate, SXStreamRuntimeDelegate {

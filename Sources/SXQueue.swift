@@ -134,7 +134,7 @@ extension SXQueue {
                 
                 func handleData() throws {
                     if let data = try self.retrieveData(with: self.recvFlag) {
-                        proceed = self.dataDelegate.didReceiveData(object: self, data: data)
+                        proceed = self.dataDelegate.didReceiveData(self, data)
                     } else {
                         proceed = false
                     }
@@ -184,7 +184,7 @@ extension SXQueue {
                 
             } catch {
                 proceed = false
-                self.dataDelegate.didReceiveError?(object: self, err: error)
+                self.dataDelegate.didReceiveError?(self, error)
             }
         } while (proceed)
         
