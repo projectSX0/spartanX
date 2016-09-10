@@ -26,12 +26,23 @@
 //  of the authors and should not be interpreted as representing official policies,
 //  either expressed or implied, of the FreeBSD Project.
 //
-//  Created by Yuji on 6/4/16.
+//  Created by yuuji on 9/5/16.
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-import Foundation
-
-public protocol SXObject {
-    func close()
+public struct SXTLSContextInfo {
+    public var certificate: (path: String, passwd: String?)
+    public var privateKey: (path: String, passwd: String?)
+    public var ca: (path: String, passwd: String?)?
+    public var ca_path: String?
+    
+    public init(certificate: (path: String, passwd: String?),
+                privateKey: (path: String, passwd: String?),
+                ca: (path: String, passwd: String?)? = nil,
+                ca_path: String? = nil) {
+        self.certificate = certificate
+        self.privateKey = privateKey
+        self.ca = ca
+        self.ca_path = ca_path
+    }
 }

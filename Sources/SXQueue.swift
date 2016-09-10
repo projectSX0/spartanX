@@ -30,164 +30,49 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-import Foundation
-
-public class SXStreamQueue: SXQueue {
+public class SXQueue: KqueueManagable {
     
+    public var ident: Int32
+    public var fd_r: Readable
+    public var fd_w: Writable
     
-    public var status: SXStatus
-    public var binded: [SXRuntimeObject] = []
-    public var server: SXServer
-
+    internal var status: SXStatus = .idle
+    public var service: SXService
     
-    public var socket: SXSocket
-    public var delegate: SXStreamRuntimeDelegate?
+    public var currentStatus: SXStatus {
+        return self.status
+    }
     
-    public var recvFlag: Int32 = 0
-    public var sendFlag: Int32 = 0
-    
-    public var dataDelegate: SXRuntimeDataDelegate
-  
-    init(server: SXStreamServer, socket: SXSocket) {
+    init(fd: Int32, readFrom r: Readable, writeTo w: Writable, with service: SXService) throws {
         
-        self.recvFlag = server.recvFlag
-        self.recvFlag = server.recvFlag
-        
-        self.socket = socket
-        status = .idle
-        self.server = server
-        self.dataDelegate = server
-        
+        self.fd_r = r
+        self.fd_w = w
+        self.service = service
+        self.ident = fd
+        SpartanXManager.default?.register(service: service, queue: self)
     }
     
-    public func statusDidChange(status: SXStatus) {
-        self.status = status
+    public func terminate() {
+        self.fd_r.done()
+        self.fd_w.done()
+        SpartanXManager.default?.unregister(for: ident)
     }
-    
-    public func retrieveData(with flags: Int32 = 0) throws -> Data? {
-        let data = try self.socket.receive(size: self.socket.bufsize, flags: flags)
-        if data.isEmpty {
-            return nil
-        }
-        return data
-    }
-    
-    public func close() {
-        self.binded.removeAll()
-        self.socket.close()
-    }
-    
-}
-
-public protocol SXQueue : SXRuntimeObject , SXRuntimeController {
-    var server: SXServer {get set}
-    
-    var binded: [SXRuntimeObject] {get set}
-    var status: SXStatus {get set}
-    var recvFlag: Int32 { get set }
-    var sendFlag: Int32 { get set }
-    var dataDelegate: SXRuntimeDataDelegate {get set}
-
-    func retrieveData(with flags: Int32) throws -> Data?
-
-    mutating func start(completion: () -> ())
-}
-
-extension SXQueue {
-    
-    public var owner: SXRuntimeObject? {
-            get {
-                return server
-            } set {
-                if let s = newValue as? SXServer {
-                    server = s
+   
+    public func runloop(kdata: Int, udata: UnsafeRawPointer!) {
+        do {
+            self.fd_r.readBufsize = kdata + 1
+            if let data = try self.fd_r.read() {
+                
+                if !self.service.dataHandler(self, data) {
+                    return terminate()
                 }
+                
+            } else {
+                return terminate()
             }
-        }
-    
-    public mutating func inherit(from server: SXServer) {
-        if server.status != .running {
-            self.status = server.status
-        }
-        
-        if server.recvFlag != recvFlag {
-            recvFlag = server.recvFlag
-            self.recvFlag = recvFlag
-        }
-        
-        if self.server.sendFlag != sendFlag {
-            sendFlag = server.sendFlag
-            self.sendFlag = sendFlag
-        }
-    }
-    
-    public mutating func start(completion: () -> ()) {
-        self.status = .running
-        
-        var suspended = false;
-        var proceed = false
-
-        repeat {
             
-            do {
-                inherit(from: self.server)
-                
-                func handleData() throws {
-                    if let data = try self.retrieveData(with: self.recvFlag) {
-                        proceed = self.dataDelegate.didReceiveData(self, data)
-                    } else {
-                        proceed = false
-                    }
-                }
-                
-                switch self.status {
-                    
-                case .running:
-                    try handleData()
-                    
-                case .resumming:
-                    self.status = .running
-                    self.statusDidChange(status: self.status)
-
-                case .suspended:
-                    if !suspended {
-                        self.statusDidChange(status: self.status)
-                    }
-                    suspended = true
-
-                    if let data = try retrieveData(with: 0) {
-                        #if swift(>=3)
-                        if (data.count == 0 || data.count == -1) { proceed = false }
-                        #else
-                        if (data.length == 0 || data.length == -1) { proceed = false }
-                        #endif
-                    } else {
-                        proceed = false
-                    }
-                
-                    switch self.status {
-                        
-                    case .shouldTerminate, .idle:
-                        proceed = false
-                        
-                    case .running, .resumming:
-                        try handleData()
-                        
-                    default:
-                        break
-                
-                    }
-                    
-                case .shouldTerminate, .idle:
-                    self.statusDidChange(status: self.status)
-                }
-                
-            } catch {
-                proceed = false
-                self.dataDelegate.didReceiveError?(self, error)
-            }
-        } while (proceed)
-        
-        completion()
+        } catch {
+            self.service.errHandler?(self, error)
+        }
     }
 }

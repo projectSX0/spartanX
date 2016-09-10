@@ -32,154 +32,20 @@
 
 import Foundation
 
-public protocol SXServer : SXRuntimeObject, SXRuntimeController {
-    var maxGuest: Int { get set }
-    var socket: SXLocalSocket { get set }
-   
-    var port: in_port_t { get set }
-    var bufsize: Int { get set }
-    var backlog: Int { get set }
-    
-    #if swift(>=3)
-    func start(listenQueue: (() -> SXThreadingProxy), operateQueue: (() -> SXThreadingProxy))
-    #else
-    func start(listenQueue: (() -> dispatch_queue_t), operateQueue: (() -> dispatch_queue_t))
-    #endif
+public protocol SXService {
+    var dataHandler: (SXQueue, Data) -> Bool { get set }
+    var errHandler: ((SXQueue, Error) -> ())? { get set }
+    var willTerminateHandler: ((SXQueue) -> ())? { get set }
+    var didTerminateHandler: ((SXQueue) -> ())? { get set }
 }
 
-
-public class SXStreamServer: SXServer, SXRuntimeDataDelegate {
-    public var maxGuest: Int
-    public var socket: SXLocalSocket
-   
-    public var owner: AnyObject? = nil
-    public var status: SXStatus
-    public var port: in_port_t
-    public var bufsize: Int
-    public var backlog: Int
-
-    public var delegate: SXStreamServerDelegate?
-
-    public var didReceiveData: (_ object: SXQueue, _ data: Data) -> Bool
-    public var didReceiveError: ((_ object: SXRuntimeObject, _ err: Error) -> ())?
+public class SXConnectionService: SXService {
+    public var dataHandler: (SXQueue, Data) -> Bool
+    public var errHandler: ((SXQueue, Error) -> ())?
+    public var willTerminateHandler: ((SXQueue) -> ())?
+    public var didTerminateHandler: ((SXQueue) -> ())?
     
-    public var recvFlag: Int32 = 0
-    public var sendFlag: Int32 = 0
-    
-    public func statusDidChange(status: SXStatus) {
-        guard let delegate = self.delegate else {return}
-        delegate.didChangeStatus?(self, status)
-    }
-    
-    public func close() {
-        self.delegate?.didKill?(self)
-        self.socket.close()
-    }
-    
-    public init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, dataDelegate: SXRuntimeDataDelegate) throws {
-        self.status = .idle
-        self.socket = try SXLocalSocket(port: port, domain: domain, type: .stream, protocol: `protocol`, bufsize: bufsize)
-        try self.socket.bind()
-        self.port = port
-        self.backlog = backlog
-        self.maxGuest = maxGuest
-        self.bufsize = bufsize
-        self.didReceiveData = dataDelegate.didReceiveData
-        self.didReceiveError = dataDelegate.didReceiveError
-    }
-    
-    public convenience init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, handler: @escaping (_ object: SXQueue, _ data: Data) -> Bool) throws {
-        try self.init(port: port, domain: domain, protocol: `protocol`, maxGuest: maxGuest, backlog: backlog, bufsize: bufsize, handler: handler, errHandler: nil)
-    }
-    
-    public init(port: in_port_t, domain: SXSocketDomains, protocol: Int32 = 0, maxGuest: Int, backlog: Int, bufsize: Int = 16384, handler: @escaping (_ object: SXQueue, _ data: Data) -> Bool, errHandler: ((_ object: SXRuntimeObject, _ err: Error) -> ())? = nil) throws {
-        self.status = .idle
-        self.socket = try SXLocalSocket(port: port, domain: domain, type: .stream, protocol: `protocol`, bufsize: bufsize)
-        try self.socket.bind()
-        self.port = port
-        self.backlog = backlog
-        self.maxGuest = maxGuest
-        self.bufsize = bufsize
-        self.didReceiveData = handler
-    }
-    
-    public func start() {
-        self.start(listenQueue: {
-            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-            return GrandCentralDispatchQueue(DispatchQueue.global())
-            #elseif os(Linux) || os(FreeBSD)
-            return SXThreadPool.default
-            #endif
-            }, operateQueue: {
-            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-                return GrandCentralDispatchQueue(DispatchQueue.global())
-            #elseif os(Linux) || os(FreeBSD)
-                return SXThreadPool.default
-            #endif
-            }
-        )
-    }
-    
-    public func start(listenQueue listeningQueue: (() -> SXThreadingProxy), operateQueue operatingQueue: (()->SXThreadingProxy)) {
-        
-        var listenQueue = listeningQueue()
-        listenQueue.execute {
-
-            self.status = .running
-            var count = 0
-            do {
-                while self.status != .shouldTerminate {
-                    
-                    try self.socket.listen(backlog: self.backlog)
-                    
-                    if self.status == .shouldTerminate {
-                        break
-                    } else if self.status == .suspended {
-                        continue
-                    }
-                    
-                    do {
-                        
-                        let socket = try self.socket.accept(bufsize: self.bufsize)
-                        if count >= self.maxGuest {
-                            count += 1
-                            continue
-                        }
-                        
-                        if let handler = self.delegate?.shouldConnect?(self, socket) {
-                            if !handler {
-                                socket.close()
-                                continue
-                            }
-                        }
-                        
-                        var queue: SXStreamQueue = SXStreamQueue(server: self, socket: socket)
-                        
-                        if self.delegate != nil {
-                            transfer(lhs: &queue.delegate!, rhs: &self.delegate!)
-                        }
-                        
-                        var operateQueue = operatingQueue()
-                        operateQueue.execute {
-                            queue.start(completion: {
-                                queue.close()
-                                queue.delegate?.didDisconnect?(queue, queue.socket)
-                                count -= 1
-                            })
-                        }
-                        
-                    } catch {
-                        self.didReceiveError?(self, error)
-                        continue
-                    }
-                }
-                
-                self.status = .idle
-                self.close()
-                self.delegate?.didKill?(self)
-            } catch {
-                self.didReceiveError?(self, error)
-            }
-        }
+    public init(handler: @escaping (SXQueue, Data) -> Bool) {
+        self.dataHandler = handler
     }
 }

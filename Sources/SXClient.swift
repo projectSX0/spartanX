@@ -1,265 +1,125 @@
+
+//  Copyright (c) 2016, Yuji
+//  All rights reserved.
 //
-////  Copyright (c) 2016, Yuji
-////  All rights reserved.
-////
-////  Redistribution and use in source and binary forms, with or without
-////  modification, are permitted provided that the following conditions are met:
-////
-////  1. Redistributions of source code must retain the above copyright notice, this
-////  list of conditions and the following disclaimer.
-////  2. Redistributions in binary form must reproduce the above copyright notice,
-////  this list of conditions and the following disclaimer in the documentation
-////  and/or other materials provided with the distribution.
-////
-////  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-////  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-////  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-////  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-////  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-////  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-////  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-////  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-////  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-////  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-////
-////  The views and conclusions contained in the software and documentation are those
-////  of the authors and should not be interpreted as representing official policies,
-////  either expressed or implied, of the FreeBSD Project.
-////
-////  Created by Yuji on 6/3/16.
-////  Copyright © 2016 yuuji. All rights reserved.
-////
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions are met:
 //
-//import Foundation
-//import Darwin
+//  1. Redistributions of source code must retain the above copyright notice, this
+//  list of conditions and the following disclaimer.
+//  2. Redistributions in binary form must reproduce the above copyright notice,
+//  this list of conditions and the following disclaimer in the documentation
+//  and/or other materials provided with the distribution.
 //
-//protocol SXClient : SXLocalSocket, SXRuntimeController, SXRuntimeObject {
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+//  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+//  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+//  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+//  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+//  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+//  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+//  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-//}
+//  The views and conclusions contained in the software and documentation are those
+//  of the authors and should not be interpreted as representing official policies,
+//  either expressed or implied, of the FreeBSD Project.
 //
-//public class SXStreamClient: SXClient, SXStreamProtocol {
-//    
-//    /* SXLocalSocket */
-//    public var sockfd: Int32
-//    public var domain: SXSocketDomains
-//    public var type: SXSocketTypes
-//    public var `protocol`: Int32
-//    public var port: in_port_t?
-//    public var bufsize: Int
-//    
-//    /* SXRuntimeController */
-//    public var method: SXRuntimeDataMethods
-//    public var recvFlag: Int32 = 0
-//    public var sendFlag: Int32 = 0
-//    
-//    /* SXRuntimeObject */
-//    public var owner: SXRuntimeObject?
-//    public var status: SXStatus = .idle
-//    
-//    public func statusDidChange(status status: SXStatus) {
-//        self.delegate?.objectDidChangeStatus(object: self, status: status)
-//    }
+//  Created by yuuji on 6/2/16.
+//  Copyright © 2016 yuuji. All rights reserved.
 //
-//    /* SXStreamProtocol */
-//    public var addr: SXSockaddr? /* target */
-//    public var delegate: SXRuntimeObjectDelegate?
-//
-//    public init(hostname: String, service: String, protocol: Int32 = 0, bufsize: Int = 16384,handler: ((object: SXRuntimeObject, data: Data) -> Bool)) throws {
-//        self.method = .block(SXRuntimeDataHandlerBlocks(didReceiveDataHandler: handler, didReceiveErrorHandler: nil))
-//        guard let addr = try SXSockaddr.DNSLookup(hostname: hostname, service: service) else {throw SXAddrError.unknownDomain}
-//        guard let domain = addr.resolveDomain() else {throw SXAddrError.unknownDomain }
-//
-//        self.addr = addr /* SXStreamProtocol */
-//        
-//        /* SXLocalSocket */
-//        self.domain = domain
-//        self.type = SXSocketTypes.SOCK_STREAM
-//        self.`protocol` = `protocol`
-//        
-//        self.port = 0
-//        self.bufsize = bufsize
-//        
-//        self.sockfd = socket(Int32(domain.rawValue), type.rawValue, `protocol`)
-//        if self.sockfd == -1 {throw SXSocketError.socket(String.errno)}
-//    }
-//
-//    public init(ip: String, port: in_port_t, domain: SXSocketDomains, `protocol`: Int32 = 0, bufsize: Int = 16384, handler: ((object: SXRuntimeObject, data: Data) -> Bool)) throws {
-//        self.method = .block(SXRuntimeDataHandlerBlocks(didReceiveDataHandler: handler, didReceiveErrorHandler: nil))
-//        guard let addr = SXSockaddr(address: ip, withDomain: domain, port: port) else {throw SXAddrError.unknownDomain}
-//        self.addr = addr;
-//        self.port = 0
-//        self.domain = domain
-//        self.`protocol` = `protocol`
-//        self.bufsize = bufsize
-//        self.type = SXSocketTypes.SOCK_STREAM
-//        self.sockfd = socket(Int32(domain.rawValue), type.rawValue, `protocol`)
-//        if self.sockfd == -1 {throw SXSocketError.socket(String.errno)}
-//    }
-//
-//    public init(hostname: String, service: String, protocol: Int32 = 0, bufsize: Int = 16384, delegate: SXRuntimeDataDelegate) throws {
-//        self.method = .delegate(delegate)
-//        guard let addr = try SXSockaddr.DNSLookup(hostname: hostname, service: service) else {throw SXAddrError.unknownDomain}
-//        guard let domain = addr.resolveDomain() else {throw SXAddrError.unknownDomain }
-//        self.addr = addr;
-//        self.port = 0
-//        self.domain = domain
-//        self.`protocol` = `protocol`
-//        self.bufsize = bufsize
-//        self.type = SXSocketTypes.SOCK_STREAM
-//        self.sockfd = socket(Int32(domain.rawValue), type.rawValue, `protocol`)
-//        if self.sockfd == -1 {throw SXSocketError.socket(String.errno)}
-//    }
-//
-//    public init(ip: String, port: in_port_t, domain: SXSocketDomains, `protocol`: Int32 = 0, bufsize: Int = 16384, delegate: SXRuntimeDataDelegate) throws {
-//        self.method = .delegate(delegate)
-//        guard let addr = SXSockaddr(address: ip, withDomain: domain, port: port) else {throw SXAddrError.unknownDomain}
-//        self.addr = addr;
-//        self.port = 0
-//        self.domain = domain
-//        self.`protocol` = `protocol`
-//        self.bufsize = bufsize
-//        self.type = SXSocketTypes.SOCK_STREAM
-//        self.sockfd = socket(Int32(domain.rawValue), type.rawValue, `protocol`)
-//        if self.sockfd == -1 {throw SXSocketError.socket(String.errno)}
-//    }
-//
-//    #if swift(>=3)
-//    public func start(_ queue: DispatchQueue, initialPayload: Data?) {
-//        do {
-//            try self.connect()
-//            
-//            
-//            if let payload = initialPayload {
-//                self.send(data: payload, flags: 0)
-//            }
-//            
-//            var s = 0
-//            var suspended = false
-//            self.status = .running
-//
-//            queue.async() {
-//                repeat {
-//                    if let owner = self.owner {
-//                        if owner.status != .running {
-//                            self.status = owner.status
-//                        }
-//                    }
-//                    
-//                    func handleData() {
-//                        do {
-//                            let data = try self.receive(size: self.bufsize, flags: 0)
-//                            let proceed = self.method.didReceiveData(object: self, data: data)
-//                            s = proceed ? data.length : 0
-//                        } catch {
-//                            self.method.didReceiveError(object: self, err: error)
-//                            s = 0
-//                        }
-//                    }
-//                    
-//                    switch self.status {
-//                    case .running:
-//                        handleData()
-//                        
-//                    case .resumming:
-//                        self.status = .running
-//                        self.statusDidChange(status: self.status)
-//                        
-//                    case .suspended:
-//                        if !suspended {
-//                            self.statusDidChange(status: self.status)
-//                        }
-//                        suspended = true
-//                        
-//                        let data = try? self.receive(size: self.bufsize, flags: 0)
-//                        if (data == nil || data?.length == 0 || data?.length == -1) { s = 0 }
-//                        
-//                        switch self.status {
-//                        case .shouldTerminate, .idle:
-//                            s = 0
-//                        case .running, .resumming:
-//                            handleData()
-//                        default: break
-//                        }
-//                    case .shouldTerminate, .idle:
-//                        self.statusDidChange(status: self.status)
-//                    }
-//                } while (s > 0)
-//                _ = self.close()
-//            }
-//        } catch {
-//            self.method.didReceiveError(object: self, err: error)
-//        }
-//    }
-//    #else
-//    public func start(queue: dispatch_queue_t, initialPayload: Data?) {
-//        do {
-//            try self.connect()
-//
-//
-//            if let payload = initialPayload {
-//                self.send(data: payload, flags: 0)
-//            }
-//
-//            var s = 0
-//            var suspended = false
-//            self.status = .running
-//            dispatch_async(queue, {
-//                repeat {
-//                    if let owner = self.owner {
-//                        if owner.status != .running {
-//                            self.status = owner.status
-//                        }
-//                    }
-//
-//                    func handleData() {
-//                        do {
-//                            let data = try self.receive(size: self.bufsize, flags: 0)
-//                            let proceed = self.method.didReceiveData(object: self, data: data)
-//                            s = proceed ? data.length : 0
-//                        } catch {
-//                            self.method.didReceiveError(object: self, err: error)
-//                            s = 0
-//                        }
-//                    }
-//
-//                    switch self.status {
-//                    case .running:
-//                        handleData()
-//
-//                    case .resumming:
-//                        self.status = .running
-//                        self.statusDidChange(status: self.status)
-//
-//                    case .suspended:
-//                        if !suspended {
-//                            self.statusDidChange(status: self.status)
-//                        }
-//                        suspended = true
-//
-//                        let data = try? self.receive(size: self.bufsize, flags: 0)
-//                        if (data == nil || data?.length == 0 || data?.length == -1) { s = 0 }
-//
-//                        switch self.status {
-//                        case .shouldTerminate, .idle:
-//                            s = 0
-//                        case .running, .resumming:
-//                            handleData()
-//                        default: break
-//                        }
-//                    case .shouldTerminate, .idle:
-//                        self.statusDidChange(status: self.status)
-//                    }
-//                } while (s > 0)
-//                self.close()
-//            })
-//        } catch {
-//            self.method.didReceiveError(object: self, err: error)
-//        }
-//    }
-//    #endif
-//    
-//    public func close() -> Int32 {
-//        self.owner = nil
-//        return Darwin.close(self.sockfd)
-//    }
-//}
+
+import Foundation
+import swiftTLS
+
+public struct ClientFunctions<ClientSocketType> {
+    var read: (ClientSocketType) throws -> Data?
+    var write: (ClientSocketType, _ data: Data) throws -> ()
+    var clean: ((ClientSocketType) -> ())?
+}
+
+public protocol ClientIOConf {
+    
+}
+
+public struct SXClientIOConf: ClientIOConf {
+    var flags_r: Int32
+    var flags_w: Int32
+    var readBufsize: size_t
+    
+    public static var `default` = SXClientIOConf(read: (bufsize: 10240, flags: 0),
+                                                 writeFlags: 0)
+    
+    public init(read: (bufsize: size_t, flags: Int32),
+                writeFlags: Int32) {
+        self.readBufsize = read.bufsize
+        self.flags_r = read.flags
+        self.flags_w = writeFlags
+    }
+}
+
+public struct SXClientSocket : ClientSocket {
+    
+    internal var _read: (SXClientSocket) throws -> Data?
+    internal var _write: (SXClientSocket, Data) throws -> ()
+    internal var _clean: ((SXClientSocket) -> ())?
+    
+    public var sockfd: Int32
+    public var domain: SXSocketDomains
+    public var type: SXSocketTypes
+    public var `protocol`: Int32
+    
+    public var address: SXSocketAddress?
+    
+    public var tlsContext: TLSClient?
+    
+    public var readBufsize: size_t
+    public var readFlags: Int32
+    public var writeFlags: Int32
+    
+    internal init(fd: Int32,
+                  tls: TLSClient?,
+                  addrinfo: (addr: sockaddr, len: socklen_t),
+                  sockinfo: (type: SXSocketTypes, `protocol`: Int32),
+                  rwconfig: SXClientIOConf,
+                  functions: ClientFunctions<SXClientSocket>) throws {
+        self.address = try SXSocketAddress(addrinfo.addr, socklen: addrinfo.len)
+        self.sockfd = fd
+        
+        switch Int(addrinfo.len) {
+        case MemoryLayout<sockaddr_in>.size:
+            self.domain = .inet
+        case MemoryLayout<sockaddr_in6>.size:
+            self.domain = .inet6
+        case MemoryLayout<sockaddr_un>.size:
+            self.domain = .unix
+        default:
+            throw SXSocketError.socket("Unknown domain")
+        }
+        
+        self.type = sockinfo.type
+        self.`protocol` = sockinfo.`protocol`
+        self.readBufsize = rwconfig.readBufsize
+        self.readFlags = rwconfig.flags_r
+        self.writeFlags = rwconfig.flags_w
+        
+        self._read = functions.read
+        self._write = functions.write
+    }
+}
+
+public extension SXClientSocket {
+    public func write(data: Data) throws {
+        try self._write(self, data)
+    }
+    
+    public func read() throws -> Data? {
+        return try self._read(self)
+    }
+    
+    public func done() {
+        self._clean?(self)
+        close(self.sockfd)
+    }
+}

@@ -31,6 +31,7 @@
 //
 
 import Foundation
+import CKit
 
 public enum SXStatus {
     case idle
@@ -40,49 +41,203 @@ public enum SXStatus {
     case shouldTerminate
 }
 
-public protocol SXRuntimeObject {
+public protocol KqueueManagable {
+    var ident: Int32 { get set }
+    func runloop(kdata: Int, udata: UnsafeRawPointer!)
+}
+
+public extension Array {
+    subscript(_ i: Int32) -> Element {
+        return self[Int(i)]
+    }
+}
+
+internal struct __sxqueue_wrap {
+    var q: KqueueManagable
+    init(_ q: KqueueManagable) { self.q = q }
+}
+
+#if os(OSX) || os(FreeBSD) || os(iOS) || os(watchOS) || os(tvOS)
+    typealias _kevent = Foundation.kevent
     
-    var status: SXStatus { get }
-
-    func statusDidChange(status: SXStatus)
+    public struct SpartanXManager {
+        public static var `default`: SpartanXManager?
+        var kernels = [SXKernel]()
+        var map = [Int32 : SXKernel]()
+    }
     
-    func close()
-}
+    public extension SpartanXManager {
+        
+        public static func initializeDefault() {
+            `default` = SpartanXManager(maxCPU: 3, evs_cpu: 5120)
+        }
+        
+        internal mutating func register(service: SXService, queue: SXQueue) {
+            let queue = __sxqueue_wrap(queue)
+            register(queue: queue)
+        }
+        
+        internal mutating func register(for socket: SXServerSocket) {
+            let queue = __sxqueue_wrap(socket)
+            register(queue: queue)
+        }
+        
+        @inline(__always)
+        internal mutating func register(queue: __sxqueue_wrap) {
+            let _leastBusyKernel = leastBusyKernel()
+            map[queue.q.ident] = _leastBusyKernel
+            _leastBusyKernel?.register(queue: queue)
+        }
+        
+        internal mutating func unregister(for ident: Int32) {
+            let kernel = map[ident]
+            kernel?.remove(ident: ident)
+            map[ident] = nil
+        }
+        
+        @inline(__always)
+        func leastBusyKernel() -> SXKernel? {
+            return kernels.sorted {
+                $0.queues.count < $1.queues.count
+                }.first
+        }
+    }
+    
+    public extension SpartanXManager {
+        init(maxCPU: Int, evs_cpu: Int) {
+            self.kernels = [SXKernel](count: maxCPU) {_ in
+                return SXKernel(events_count: evs_cpu)
+            }
+        }
+    }
+    
+    public class SXKernel {
+        
+        public var thread: SXThread
+        var mutex: pthread_mutex_t
+        var kq: Int32
+        
+        // change list and eventlist
+        var events: [_kevent]
+        var changes: [_kevent]
+        
+        // user queues
+        var queues: [Int32: KqueueManagable]
+        
+        // events count
+        var count = 0
+        
+        // active events count
+        var actived = false
+        
+        init(events_count: Int) {
+            thread = SXThread()
+            mutex = pthread_mutex_t()
+            kq = kqueue()
+            self.queues = [:]
+            self.events = [_kevent](repeating: _kevent(), count: events_count)
+            self.changes = [_kevent]()
+            
+            pthread_mutex_init(&mutex, nil)
+        }
+        
+    }
+    
+    
+    // Kevent
+    extension SXKernel {
+        
+        func activate() {
+            self.withMutex{
+                actived = true
+            }
+            
+            self.thread.execute {
+                
+                kqueue_loop: while true {
+                    
+                    if (self.withMutex { () -> Bool in
+                        
+                        if self.changes.count != 0 {
+                            
+                            kevent(self.kq, self.changes, Int32(self.changes.count), nil, 0, nil)
+                            self.changes.removeAll(keepingCapacity: true)
+                        }
+                        
+                        if self.count == 0 {
+                            return true
+                        }
+                        return false
+                        }) {
+                        
+                        break kqueue_loop
+                    }
+                    
+                    
+                    let nev = kevent(self.kq, nil, 0, &self.events, Int32(self.events.count), nil)
+                    
+                    if nev < 0 {
+                        continue
+                    }
+                    
+                    if nev == 0 {
+                        break
+                    }
 
-public protocol SXRuntimeController {
-    var recvFlag: Int32 {get set}
-    var sendFlag: Int32 {get set}
-}
+                    for i in 0..<Int(nev) {
+                        let event = self.events[i]
+                        let queue = self.queues[Int32(event.ident)]
+                        queue?.runloop(kdata: event.data, udata: event.udata)
+                    }
 
-public protocol SXRuntimeBasicDelegate {
-    var didChangeStatus: ((_ object: SXRuntimeObject, _ status: SXStatus) -> ())? {get set}
-}
-
-public protocol SXRuntimeDataDelegate {
-    var didReceiveData: (_ object: SXQueue, _ data: Data) -> Bool {get set}
-    var didReceiveError: ((_ object: SXRuntimeObject, _ err: Error) -> ())? {get set}
-}
-
-public protocol SXStreamRuntimeDelegate {
-    var didConnect: ((_ object: SXRuntimeObject, _ withSocket: SXSocket) -> ())? {get set}
-    var didDisconnect: ((_ object: SXRuntimeObject, _ withSocket: SXSocket) -> ())? {get set}
-    var willKill: ((_ object: SXRuntimeObject) -> ())? {get set}
-}
-
-
-public protocol SXServerDelegate: SXRuntimeBasicDelegate {
-    var shouldConnect: ((_ server: SXServer, _ withSocket: SXSocket) -> Bool)? {get set}
-    var didStart: ((_ server: SXServer) -> ())? {get set}
-    var didKill: ((_ server: SXServer) -> ())? {get set}
-}
-
-public protocol SXStreamServerDelegate : SXServerDelegate, SXStreamRuntimeDelegate {
-}
-
-
-internal func transfer (lhs: inout SXStreamRuntimeDelegate, rhs: inout SXStreamServerDelegate) {
-    lhs.didConnect = rhs.didConnect
-    lhs.didDisconnect = rhs.didDisconnect
-    lhs.willKill = rhs.willKill
-}
-
+                }
+                
+                self.withMutex {
+                    self.actived = false
+                }
+            }
+        }
+        
+        func register(queue: __sxqueue_wrap) {
+            withMutex {
+                self.queues[queue.q.ident] = queue.q
+                
+                let k = _kevent(ident: UInt(queue.q.ident),
+                                filter: Int16(EVFILT_READ),
+                                flags: UInt16(EV_ADD | EV_ENABLE | EV_RECEIPT),
+                                fflags: 0, data: 0,
+                                udata: nil)
+                count += 1
+                changes.append(k);
+            }
+            
+            if !actived {
+                activate()
+            }
+        }
+        
+        func remove(ident: Int32) {
+            withMutex {
+                self.queues[ident] = nil
+                let k = _kevent(ident: UInt(ident),
+                                filter: Int16(EVFILT_READ),
+                                flags: UInt16(EV_DELETE | EV_DISABLE | EV_RECEIPT),
+                                fflags: 0,
+                                data: 0,
+                                udata: nil)
+                count -= 1
+                changes.append(k)
+            }
+        }
+    }
+    
+    // Helper
+    extension SXKernel {
+        func withMutex<Result>(_ execute: () -> Result) -> Result {
+            pthread_mutex_lock(&mutex)
+            let r = execute()
+            pthread_mutex_unlock(&mutex)
+            return r
+        }
+    }
+#endif

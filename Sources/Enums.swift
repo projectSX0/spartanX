@@ -30,8 +30,6 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-import Foundation
-
 public enum SXSocketError: Error {
     case nonImplementedDomain
     case socket(String)
@@ -46,6 +44,10 @@ public enum SXSocketError: Error {
 public enum SXAddrError: Error {
     case getAddrInfo(String)
     case unknownDomain
+}
+
+public enum SXError: Error {
+    case duplicatedIdentInRoutingTable
 }
 
 public enum SXSocketDomains: UInt8 {

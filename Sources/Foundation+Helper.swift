@@ -50,7 +50,6 @@ private func combine(strings: [String]) -> String {
 }
 
 extension String {
-    
     public static func alignedText(strings: String..., spaces: [Int]) -> String {
         let astr = strings.enumerated().map { (index, string) -> String in
             var temp = string
@@ -74,56 +73,71 @@ extension Strideable {
     }
 }
 
-public extension Data {
-    
-    var bytes: [UInt8] {
-        var a = [UInt8](repeating: 0, count: count)
+#if swift(>=3)
+    public extension Data {
+
+        
+        var bytesCopied: [UInt8] {
+            var a = [UInt8](repeating: 0, count: count)
             self.copyBytes(to: &a, count: count)
-        return a
-    }
-    
-    var length: Int {
-        return count
-    }
-    
-    public func findBytes(bytes b: UnsafeMutableRawPointer, offset: Int = 0, len: Int) -> Int? {
-        if offset < 0 || len < 0 || self.count == 0 || len + offset > self.count
-        { return nil }
+            return a
+        }
         
-        var i = 0
-
-        let mcmp = { self.withUnsafeBytes { memcmp(b, $0.advanced(by: offset + i), len) }}
-
-        while (mcmp() != 0) {
-            if i + offset == self.count {
-                break
+        var length: Int {
+            return count
+        }
+        
+        public func findBytes(bytes b: Data, offset: Int = 0, len: Int) -> Int? {
+            
+            
+            
+            if offset < 0 || len < 0 || self.count == 0 || len + offset > self.count
+            {
+                return nil
             }
-            i += 1
-        }
-        
-        return i + offset
-    }
-}
+            
+            var i = 0
 
-extension String {
-    var cInt8String: [Int8]? {
-        get {
-            guard let uint8string = self.cString(using: .ascii) else {return nil}
-            return uint8string.map({Int8($0)})
-        }
-    }
-}
 
-extension String {
-    init (bytes: UnsafeMutablePointer<UInt8>, len: size_t) {
-        self = String((0..<len).map({Character(UnicodeScalar(bytes[$0]))}))
-    }
-    init (bytes: UnsafeMutablePointer<Int8>, len: size_t) {
-        self = String((0..<len).map({Character(UnicodeScalar(UInt8(bytes[$0])))}))
+            let mcmp = {
+                self.withUnsafeBytes {
+                    memcmp((b as NSData).bytes, $0.advanced(by: offset + i), len)
+                }
+            }
+
+            while (mcmp() != 0) {
+                if i + offset == self.count {
+                    break
+                }
+                i += 1
+            }
+            
+            return i + offset
+        }
     }
     
-    static var errno: String {
-        let err = strerror(Foundation.errno)
-        return String(bytes: err!, len: Int(strlen(err!)))
+    extension String {
+        var cInt8String: [Int8]? {
+            get {
+                guard let uint8string = self.cString(using: .ascii) else {return nil}
+                return uint8string.map({Int8($0)})
+            }
+        }
     }
-}
+    
+    extension String {
+        init (bytes: UnsafeMutablePointer<UInt8>, len: size_t) {
+            self = String((0..<len).map({Character(UnicodeScalar(bytes[$0]))}))
+        }
+        
+        init (bytes: UnsafeMutablePointer<Int8>, len: size_t) {
+            self = String((0..<len).map({Character(UnicodeScalar(UInt8(bytes[$0])))}))
+        }
+        
+        static var errno: String {
+            let err = strerror(Foundation.errno)
+//            return String(bytes: err!, len: Int(strlen(err!)))
+            return String(cString: err!)
+        }
+    }
+#endif
