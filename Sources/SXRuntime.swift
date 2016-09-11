@@ -69,7 +69,7 @@ internal struct __sxqueue_wrap {
     public extension SpartanXManager {
         
         public static func initializeDefault() {
-            `default` = SpartanXManager(maxCPU: 3, evs_cpu: 5120)
+            `default` = SpartanXManager(maxCPU: 1, evs_cpu: 5120)
         }
         
         internal mutating func register(service: SXService, queue: SXQueue) {
