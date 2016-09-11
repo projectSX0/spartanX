@@ -39,6 +39,8 @@ public enum SXSocketError: Error {
     case send(String)
     case recv(String)
     case listen(String)
+    case unconnectable
+    case notInetDomain
 }
 
 public enum SXAddrError: Error {

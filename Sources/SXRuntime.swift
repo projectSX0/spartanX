@@ -115,12 +115,16 @@ internal struct __sxqueue_wrap {
         
         public var thread: SXThread
         var mutex: pthread_mutex_t
+        
         var kq: Int32
         
+        #if os(Linux)
+        var evs: [epoll_event]
+        #else
         // change list and eventlist
         var events: [_kevent]
         var changes: [_kevent]
-        
+        #endif
         // user queues
         var queues: [Int32: KqueueManagable]
         
@@ -133,11 +137,14 @@ internal struct __sxqueue_wrap {
         init(events_count: Int) {
             thread = SXThread()
             mutex = pthread_mutex_t()
-            kq = kqueue()
             self.queues = [:]
+            #if os(Linux)
+            kq = epoll_create1(0)
+            #else
+            kq = kqueue()
             self.events = [_kevent](repeating: _kevent(), count: events_count)
             self.changes = [_kevent]()
-            
+            #endif
             pthread_mutex_init(&mutex, nil)
         }
         
@@ -159,7 +166,6 @@ internal struct __sxqueue_wrap {
                     if (self.withMutex { () -> Bool in
                         
                         if self.changes.count != 0 {
-                            
                             kevent(self.kq, self.changes, Int32(self.changes.count), nil, 0, nil)
                             self.changes.removeAll(keepingCapacity: true)
                         }
@@ -202,6 +208,12 @@ internal struct __sxqueue_wrap {
             withMutex {
                 self.queues[queue.q.ident] = queue.q
                 
+                #if os(Linux)
+                var ev = epoll_event()
+                ev.events = EPOLLIN;
+                ev.data.fd = queue.q.ident
+                epoll_ctl(kq, EPOLL_CTL_ADD, queue.q.ident, &ev)
+                #else
                 let k = _kevent(ident: UInt(queue.q.ident),
                                 filter: Int16(EVFILT_READ),
                                 flags: UInt16(EV_ADD | EV_ENABLE | EV_RECEIPT),
@@ -209,6 +221,7 @@ internal struct __sxqueue_wrap {
                                 udata: nil)
                 count += 1
                 changes.append(k);
+                #endif
             }
             
             if !actived {

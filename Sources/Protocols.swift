@@ -52,8 +52,6 @@ public protocol ClientSocket : SocketType, Readable, Writable {
 
 public protocol ConnectionSocket : SocketType, Addressable, Readable, Writable {
     var address: SXSocketAddress? { get set }
-    var port: in_port_t? { get set }
-    func connect() throws
 }
 
 public protocol Readable {
