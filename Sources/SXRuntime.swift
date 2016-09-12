@@ -47,7 +47,11 @@ public enum SXStatus {
 
 public protocol KqueueManagable {
     var ident: Int32 { get set }
+    #if os(Linux)
+    func runloop()
+    #else
     func runloop(kdata: Int, udata: UnsafeRawPointer!)
+    #endif
 }
 
 public extension Array {
