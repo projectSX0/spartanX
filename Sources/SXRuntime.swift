@@ -149,8 +149,8 @@ typealias kevent_t = Foundation.kevent
             kq = epoll_create1(0)
             #else
             kq = kqueue()
-            self.events = [kevent_t](repeating: kevent_t(), count: events_count)
             #endif
+            self.events = [kevent_t](repeating: kevent_t(), count: events_count)
             pthread_mutex_init(&mutex, nil)
         }
         
