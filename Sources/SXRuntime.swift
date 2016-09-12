@@ -178,7 +178,7 @@ typealias kevent_t = Foundation.kevent
                     
                     
                     #if os(Linux)
-                    let nev = epoll_wait(kq, &events, Int32(events.count), -1)
+                    let nev = epoll_wait(self.kq, &self.events, Int32(self.events.count), -1)
                     #else
                     let nev = kevent(self.kq, nil, 0, &self.events, Int32(self.events.count), nil)
                     #endif
@@ -193,7 +193,11 @@ typealias kevent_t = Foundation.kevent
 
                     for i in 0..<Int(nev) {
                         let event = self.events[i]
+                        #if os(Linux)
                         let queue = self.queues[Int32(event.ident)]
+                        #else
+                        let queue = self.queues[Int32(event.data.fd)]
+                        #endif
                         queue?.runloop(kdata: event.data, udata: event.udata)
                     }
 
