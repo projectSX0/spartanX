@@ -113,6 +113,18 @@ public extension SXServerSocket {
         return try self._accept(self)
     }
     
+    #if os(Linux)
+    public func runloop() {
+    do {
+    
+        let client = try self.accept()
+        _ = try SXQueue(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
+        
+        } catch {
+            print(error)
+        }
+    }
+    #else
     public func runloop(kdata: Int, udata: UnsafeRawPointer!) {
         do {
             
@@ -123,6 +135,7 @@ public extension SXServerSocket {
             print(error)
         }
     }
+    #endif
     
     public func done() {
         close(self.sockfd)
