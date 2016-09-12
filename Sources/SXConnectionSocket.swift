@@ -28,7 +28,7 @@ public struct SXConnectionSocket: ConnectionSocket//,KqueueManagable
         if let tlsc = tlsContext {
             _ = try tlsc.write(data: data)
         } else {
-            if send(sockfd, (data as NSData).bytes, data.length, 0) == -1 {
+            if send(sockfd, data.bytes, data.length, 0) == -1 {
                 throw SXSocketError.send("send: \(String.errno)")
             }
         }
