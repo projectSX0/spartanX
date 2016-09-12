@@ -178,7 +178,7 @@ typealias kevent_t = Foundation.kevent
                     
                     
                     #if os(Linux)
-                    let nev = epoll_wait(kq, &events, events.count, -1)
+                    let nev = epoll_wait(kq, &events, Int32(events.count), -1)
                     #else
                     let nev = kevent(self.kq, nil, 0, &self.events, Int32(self.events.count), nil)
                     #endif
@@ -237,7 +237,7 @@ typealias kevent_t = Foundation.kevent
                 var ev = epoll_event()
                 ev.events = EPOLLIN.rawValue;
                 ev.data.fd = ident
-                epoll_ctl(kq, EPOLL_CTL_DEL, queue.q.ident, &events)
+                epoll_ctl(kq, EPOLL_CTL_DEL, ident, &events)
                 #else
                 var k = kevent_t(ident: UInt(ident),
                                 filter: Int16(EVFILT_READ),
