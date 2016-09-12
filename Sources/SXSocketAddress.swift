@@ -295,6 +295,10 @@ public enum SXSocketAddress {
             
             let port = (UInt16(getservbyname(service.cString(using: String.Encoding.ascii)!, nil).pointee.s_port))
             
+            if cinfo == nil {
+                continue
+            }
+            
             let addr = cinfo!.pointee.ai_addr
             
             switch cinfo!.pointee.ai_family {
