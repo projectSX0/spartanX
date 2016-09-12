@@ -194,9 +194,9 @@ typealias kevent_t = Foundation.kevent
                     for i in 0..<Int(nev) {
                         let event = self.events[i]
                         #if os(Linux)
-                        let queue = self.queues[Int32(event.ident)]
+                        let queue = self.queues[Int32(event.data.data)]
                         #else
-                        let queue = self.queues[Int32(event.data.fd)]
+                        let queue = self.queues[Int32(event.ident)]
                         #endif
                         queue?.runloop(kdata: event.data, udata: event.udata)
                     }
