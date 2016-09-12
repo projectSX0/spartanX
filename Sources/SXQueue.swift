@@ -58,6 +58,24 @@ public class SXQueue: KqueueManagable {
         SpartanXManager.default?.unregister(for: ident)
     }
    
+    #if os(Linux)
+    public func runloop() {
+        do {
+            if let data = try self.fd_r.read() {
+            
+                if !self.service.dataHandler(self, data) {
+                    return terminate()
+                }
+                
+            } else {
+                return terminate()
+            }
+            
+        } catch {
+            self.service.errHandler?(self, error)
+        }
+    }
+    #else
     public func runloop(kdata: Int, udata: UnsafeRawPointer!) {
         do {
             self.fd_r.readBufsize = kdata + 1
@@ -75,4 +93,5 @@ public class SXQueue: KqueueManagable {
             self.service.errHandler?(self, error)
         }
     }
+    #endif
 }
