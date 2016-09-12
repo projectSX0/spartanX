@@ -31,6 +31,7 @@
 //
 
 import Foundation
+import FoundationPlus
 import swiftTLS
 
 public class SXServerSocket : ServerSocket, KqueueManagable {
@@ -198,7 +199,7 @@ public extension SXServerSocket {
                 if let tlsc = client.tlsContext {
                     _ = try tlsc.write(data: data)
                 } else {
-                    if send(client.sockfd, (data as NSData).bytes, data.length, 0) == -1 {
+                    if send(client.sockfd, data.bytes, data.length, 0) == -1 {
                         throw SXSocketError.send("send: \(String.errno)")
                     }
                 }
@@ -211,7 +212,7 @@ public extension SXServerSocket {
             
             let fns = ClientFunctions(read: read, write: write, clean: clean)
             
-            let accept: @escaping (SXServerSocket) throws -> SXClientSocket = {
+            let accept: (SXServerSocket) throws -> SXClientSocket = {
                 (server: SXServerSocket) throws -> SXClientSocket in
                 
                 var addr = sockaddr()

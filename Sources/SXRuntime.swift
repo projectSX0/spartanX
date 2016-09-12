@@ -33,6 +33,10 @@
 import Foundation
 import CKit
 
+#if os(Linux)
+import spartanXLinux
+#endif
+
 public enum SXStatus {
     case idle
     case running
@@ -58,7 +62,7 @@ internal struct __sxqueue_wrap {
 }
 
 #if os(Linux)
-typealias kevent_t = Foundation.epoll_event
+typealias kevent_t = epoll_event
 #else
 typealias kevent_t = Foundation.kevent
 #endif
