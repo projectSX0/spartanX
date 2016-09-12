@@ -70,6 +70,17 @@ public protocol Addressable {
     var port: in_port_t? { get set }
 }
 
+extension SocketType {
+    internal func setBlockingMode(block: Bool) {
+        let sockflags = fcntl(self.sockfd, F_GETFL, 0)
+        _ = fcntl(sockflags, F_SETFL, block ? sockflags ^ O_NONBLOCK : sockflags | O_NONBLOCK)
+    }
+    
+    public var isBlocking: Bool {
+        return ((fcntl(self.sockfd, F_GETFL, 0) & O_NONBLOCK) == 0)
+    }
+}
+
 public extension Addressable where Self : SocketType {
     public func bind() throws {
         var err: Int32 = 0

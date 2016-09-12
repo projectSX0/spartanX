@@ -49,8 +49,6 @@ public class SXServerSocket : ServerSocket, KqueueManagable {
     
     public var service: SXService
     
-    internal var proceed: Bool = true
-    
     public var ident: Int32 {
         get {
             return sockfd
@@ -126,7 +124,6 @@ public extension SXServerSocket {
     }
     
     public func done() {
-        self.proceed = false
         close(self.sockfd)
     }
     
@@ -148,18 +145,49 @@ public extension SXServerSocket {
                 if let tlsc = client.tlsContext {
                     return try? tlsc.read(size: size)
                 } else {
-                    
                     var buffer = [UInt8](repeating: 0, count: size)
-                    let flags = client.readFlags
+                    var len = 0
                     
-                    let len = recv(client.sockfd, &buffer, size, flags)
-                    
-                    if len == 0 {
-                        return nil
-                    }
-                    
-                    if len == -1 {
-                        throw SXSocketError.recv(String.errno)
+                    if client.isBlocking {
+                        
+                        let flags = client.readFlags
+                        
+                        len = recv(client.sockfd, &buffer, size, flags)
+                        
+                        if len == 0 {
+                            return nil
+                        }
+                        
+                        if len == -1 {
+                            throw SXSocketError.recv(String.errno)
+                        }
+                        
+                    } else {
+                        
+                        var _len = 0
+                        
+                        recv_loop: while true {
+                            var smallbuffer = [UInt8](repeating: 0, count: size)
+                            
+                            len = recv(client.sockfd, &smallbuffer, size, client.readFlags)
+                            
+                            if len < 0 {
+                                
+                                switch errno {
+                                case EAGAIN, EWOULDBLOCK:
+                                    break recv_loop
+                                default:
+                                    throw SXSocketError.recv(String.errno)
+                                }
+                                
+                            } else if len > 0 {
+                                buffer.append(contentsOf: smallbuffer)
+                                _len += len
+                            } else {
+                                return nil
+                            }
+                        }
+                        
                     }
                     
                     return Data(bytes: buffer, count: len)
@@ -167,7 +195,6 @@ public extension SXServerSocket {
             }
             
             let write = { (client: SXClientSocket, data: Data) throws -> () in
-                
                 if let tlsc = client.tlsContext {
                     _ = try tlsc.write(data: data)
                 } else {

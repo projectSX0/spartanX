@@ -57,9 +57,13 @@ internal struct __sxqueue_wrap {
     init(_ q: KqueueManagable) { self.q = q }
 }
 
-#if os(OSX) || os(FreeBSD) || os(iOS) || os(watchOS) || os(tvOS)
-    typealias _kevent = Foundation.kevent
-    
+#if os(Linux)
+typealias kevent_t = Foundation.epoll_event
+#else
+typealias kevent_t = Foundation.kevent
+#endif
+
+//#if os(OSX) || os(FreeBSD) || os(iOS) || os(watchOS) || os(tvOS)
     public struct SpartanXManager {
         public static var `default`: SpartanXManager?
         var kernels = [SXKernel]()
@@ -99,7 +103,7 @@ internal struct __sxqueue_wrap {
         func leastBusyKernel() -> SXKernel? {
             return kernels.sorted {
                 $0.queues.count < $1.queues.count
-                }.first
+            }.first
         }
     }
     
@@ -118,13 +122,8 @@ internal struct __sxqueue_wrap {
         
         var kq: Int32
         
-        #if os(Linux)
-        var evs: [epoll_event]
-        #else
-        // change list and eventlist
-        var events: [_kevent]
-        var changes: [_kevent]
-        #endif
+        var events: [kevent_t]
+
         // user queues
         var queues: [Int32: KqueueManagable]
         
@@ -142,8 +141,7 @@ internal struct __sxqueue_wrap {
             kq = epoll_create1(0)
             #else
             kq = kqueue()
-            self.events = [_kevent](repeating: _kevent(), count: events_count)
-            self.changes = [_kevent]()
+            self.events = [kevent_t](repeating: kevent_t(), count: events_count)
             #endif
             pthread_mutex_init(&mutex, nil)
         }
@@ -164,12 +162,7 @@ internal struct __sxqueue_wrap {
                 kqueue_loop: while true {
                     
                     if (self.withMutex { () -> Bool in
-                        
-                        if self.changes.count != 0 {
-                            kevent(self.kq, self.changes, Int32(self.changes.count), nil, 0, nil)
-                            self.changes.removeAll(keepingCapacity: true)
-                        }
-                        
+
                         if self.count == 0 {
                             return true
                         }
@@ -180,7 +173,11 @@ internal struct __sxqueue_wrap {
                     }
                     
                     
+                    #if os(Linux)
+                    let nev = epoll_wait(kq, events, events.count, -1)
+                    #else
                     let nev = kevent(self.kq, nil, 0, &self.events, Int32(self.events.count), nil)
+                    #endif
                     
                     if nev < 0 {
                         continue
@@ -212,16 +209,16 @@ internal struct __sxqueue_wrap {
                 var ev = epoll_event()
                 ev.events = EPOLLIN;
                 ev.data.fd = queue.q.ident
-                epoll_ctl(kq, EPOLL_CTL_ADD, queue.q.ident, &ev)
+                epoll_ctl(kq, EPOLL_CTL_ADD, queue.q.ident, &events)
                 #else
-                let k = _kevent(ident: UInt(queue.q.ident),
+                var k = kevent_t(ident: UInt(queue.q.ident),
                                 filter: Int16(EVFILT_READ),
                                 flags: UInt16(EV_ADD | EV_ENABLE | EV_RECEIPT),
                                 fflags: 0, data: 0,
                                 udata: nil)
-                count += 1
-                changes.append(k);
+                kevent(kq, &k, 1, nil, 0, nil)
                 #endif
+                count += 1
             }
             
             if !actived {
@@ -232,14 +229,21 @@ internal struct __sxqueue_wrap {
         func remove(ident: Int32) {
             withMutex {
                 self.queues[ident] = nil
-                let k = _kevent(ident: UInt(ident),
+                #if os(Linux)
+                var ev = epoll_event()
+                ev.events = EPOLLIN;
+                ev.data.fd = queue.q.ident
+                epoll_ctl(kq, EPOLL_CTL_DEL, queue.q.ident, &events)
+                #else
+                var k = kevent_t(ident: UInt(ident),
                                 filter: Int16(EVFILT_READ),
                                 flags: UInt16(EV_DELETE | EV_DISABLE | EV_RECEIPT),
                                 fflags: 0,
                                 data: 0,
                                 udata: nil)
+                kevent(kq, &k, 1, nil, 0, nil)
+                #endif
                 count -= 1
-                changes.append(k)
             }
         }
     }
@@ -253,4 +257,4 @@ internal struct __sxqueue_wrap {
             return r
         }
     }
-#endif
+//#endif
