@@ -39,11 +39,11 @@ public protocol SXService {
     var didTerminateHandler: ((SXQueue) -> ())? { get set }
 }
 
-public class SXConnectionService: SXService {
-    public var dataHandler: (SXQueue, Data) -> Bool
-    public var errHandler: ((SXQueue, Error) -> ())?
-    public var willTerminateHandler: ((SXQueue) -> ())?
-    public var didTerminateHandler: ((SXQueue) -> ())?
+open class SXConnectionService: SXService {
+    open var dataHandler: (SXQueue, Data) -> Bool
+    open var errHandler: ((SXQueue, Error) -> ())?
+    open var willTerminateHandler: ((SXQueue) -> ())?
+    open var didTerminateHandler: ((SXQueue) -> ())?
     
     public init(handler: @escaping (SXQueue, Data) -> Bool) {
         self.dataHandler = handler

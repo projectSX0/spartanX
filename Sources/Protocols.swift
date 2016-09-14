@@ -70,6 +70,12 @@ public protocol Addressable {
     var port: in_port_t? { get set }
 }
 
+extension KqueueManagable where Self : SocketType {
+    public var ident: Int32 {
+        return sockfd
+    }
+}
+
 extension SocketType {
     internal func setBlockingMode(block: Bool) {
         let sockflags = fcntl(self.sockfd, F_GETFL, 0)

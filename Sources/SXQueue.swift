@@ -36,12 +36,9 @@ public class SXQueue: KqueueManagable {
     public var fd_r: Readable
     public var fd_w: Writable
     
-    internal var status: SXStatus = .idle
     public var service: SXService
     
-    public var currentStatus: SXStatus {
-        return self.status
-    }
+    public var manager: SXKernelManager?
     
     init(fd: Int32, readFrom r: Readable, writeTo w: Writable, with service: SXService) throws {
         
@@ -49,13 +46,13 @@ public class SXQueue: KqueueManagable {
         self.fd_w = w
         self.service = service
         self.ident = fd
-        SpartanXManager.default?.register(service: service, queue: self)
+        SXKernelManager.default?.register(service: service, queue: self)
     }
     
     public func terminate() {
         self.fd_r.done()
         self.fd_w.done()
-        SpartanXManager.default?.unregister(for: ident)
+        SXKernelManager.default?.unregister(for: ident)
     }
    
     #if os(Linux)

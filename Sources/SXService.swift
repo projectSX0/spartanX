@@ -34,13 +34,14 @@ import Foundation
 import FoundationPlus
 import swiftTLS
 
-public class SXServerSocket : ServerSocket, KqueueManagable {
+open class SXServerSocket : ServerSocket, KqueueManagable {
     
     public var address: SXSocketAddress?
     public var port: in_port_t?
     
-    public var tlsContext: TLSServer?
+    public var manager = SXKernelManager.default
     
+    public var tlsContext: TLSServer?
     public var clientConf: ClientIOConf
     
     public var sockfd: Int32
@@ -48,22 +49,13 @@ public class SXServerSocket : ServerSocket, KqueueManagable {
     public var type: SXSocketTypes
     public var `protocol`: Int32
     
-    public var service: SXService
-    
-    public var ident: Int32 {
-        get {
-            return sockfd
-        } set {
-            sockfd = newValue
-        }
-    }
-    
-    public var backlog: Int
+    open var backlog: Int
+    open var service: SXService
     
     internal var _accept: (_ from: SXServerSocket) throws -> ClientSocket
     
     public init(service: SXService,
-                conf: SXRouteConf,
+                conf: SXSocketConfiguation,
                 tls: SXTLSContextInfo?,
                 clientConf: ClientIOConf,
                 accept: @escaping (_ from: SXServerSocket) throws -> ClientSocket) throws {
@@ -77,7 +69,6 @@ public class SXServerSocket : ServerSocket, KqueueManagable {
         self.`protocol` = conf.`protocol`
         self.domain = conf.domain
         self.backlog = conf.backlog
-        
         self._accept = accept
         
         self.sockfd = socket(Int32(domain.rawValue), type.rawValue, `protocol`)
@@ -98,9 +89,10 @@ public class SXServerSocket : ServerSocket, KqueueManagable {
         }
         
         try self.listen()
-        SpartanXManager.default?.register(for: self)
     }
 }
+
+//MARK: Runtime
 
 public extension SXServerSocket {
     public func listen() throws {
@@ -108,6 +100,10 @@ public extension SXServerSocket {
             throw SXSocketError.listen(String.errno)
         }
     }
+    
+//    public func start() {
+////        SXKernelManager.default?.register(for: self)
+//    }
     
     public func accept() throws -> ClientSocket {
         return try self._accept(self)
@@ -146,11 +142,13 @@ public extension SXServerSocket {
     }
 }
 
+//MARK: - Default
+
 public extension SXServerSocket {
     public static func `default`(service: SXService,
-                                 conf: SXRouteConf,
+                                 conf: SXSocketConfiguation,
                                  tls: SXTLSContextInfo?,
-                                 clientConf: SXClientIOConf)
+                                 clientConf: SXClientIOConf = SXClientIOConf.default)
         
         throws -> SXServerSocket {
             

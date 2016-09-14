@@ -32,12 +32,7 @@
     import Darwin
 #endif
 
-public struct SocketInfo {
-    var sockfd: Int32
-    var address: SXSocketAddress
-}
-
-public struct SXRouteConf {
+public struct SXSocketConfiguation {
     public var address: SXSocketAddress
     public var port: in_port_t
     
@@ -49,8 +44,8 @@ public struct SXRouteConf {
     public var `protocol`: Int32
     public var backlog : Int
     
-    public init(domain: SXSocketDomains,
-                type: SXSocketTypes,
+    public init(domain: SXSocketDomains = .unspec,
+                type: SXSocketTypes = .stream,
                 port: in_port_t,
                 backlog: Int = 50,
                 using `protocol`: Int32 = 0) {
