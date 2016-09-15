@@ -79,7 +79,7 @@ extension KqueueManagable where Self : SocketType {
 extension SocketType {
     internal func setBlockingMode(block: Bool) {
         let sockflags = fcntl(self.sockfd, F_GETFL, 0)
-        _ = fcntl(sockflags, F_SETFL, block ? sockflags ^ O_NONBLOCK : sockflags | O_NONBLOCK)
+        _ = fcntl(self.sockfd, F_SETFL, block ? sockflags ^ O_NONBLOCK : sockflags | O_NONBLOCK)
     }
     
     public var isBlocking: Bool {
