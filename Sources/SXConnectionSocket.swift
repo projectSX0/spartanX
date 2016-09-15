@@ -62,24 +62,69 @@ extension SXConnectionSocket: KqueueManagable {
         if let tlsc = tlsContext {
             return try? tlsc.read(size: size)
         } else {
-            
-            var buffer = [UInt8](repeating: 0, count: size)
-            let flags: Int32 = 0
-            
-            let len = recv(sockfd, &buffer, size, flags)
-            
-            if len == 0 {
-                return nil
-            }
-            
-            if len == -1 {
-                throw SXSocketError.recv(String.errno)
+            var buffer = [UInt8](repeating: 0, count: readBufsize)
+            var len = 0
+            if self.isBlocking {
+                var buffer = [UInt8](repeating: 0, count: readBufsize)
+                let flags: Int32 = 0
+                
+                let len = recv(sockfd, &buffer, size, flags)
+                
+                if len == 0 {
+                    return nil
+                }
+                
+                if len == -1 {
+                    throw SXSocketError.recv(String.errno)
+                }
+            } else {
+                var _len = 0
+                
+                recv_loop: while true {
+                    var smallbuffer = [UInt8](repeating: 0, count: size)
+                    
+                    len = recv(sockfd, &smallbuffer, size, 0)
+                    
+                    if len < 0 {
+                        
+                        switch errno {
+                        case EAGAIN, EWOULDBLOCK:
+                            break recv_loop
+                        default:
+                            throw SXSocketError.recv(String.errno)
+                        }
+                        
+                    } else if len > 0 {
+                        buffer.append(contentsOf: smallbuffer)
+                        _len += len
+                    } else {
+                        return nil
+                    }
+                }
             }
             
             return Data(bytes: buffer, count: len)
         }
     }
     
+    #if os(Linux)
+    public func runloop() {
+        do {
+            let payload = try self.read()
+            if handler?(payload) == false {
+                done()
+            }
+        } catch {
+            if let errh = errhandler {
+                if !errh(error) {
+                    done()
+                }
+            } else {
+                done()
+            }
+        }
+    }
+    #else
     public func runloop(kdata: Int, udata: UnsafeRawPointer!) {
         do {
             let payload = try self.read(bufsize: kdata)
@@ -96,6 +141,7 @@ extension SXConnectionSocket: KqueueManagable {
             }
         }
     }
+    #endif
     
     public func done() {
         if var manager = self.manager {
