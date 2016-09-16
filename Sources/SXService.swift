@@ -109,12 +109,12 @@ public extension SXServerSocket {
     public func runloop() {
     do {
     
-        let client = try self.accept()
-        _ = try SXQueue(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
-        
-        } catch {
-            print(error)
-        }
+    let client = try self.accept()
+    _ = try SXQueue(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
+    
+    } catch {
+    print(error)
+    }
     }
     #else
     public func runloop(kdata: Int, udata: UnsafeRawPointer!) {
@@ -150,29 +150,59 @@ public extension SXServerSocket {
             
             let read = { (client: SXClientSocket) throws -> Data? in
                 let size = client.readBufsize
-                if let tlsc = client.tlsContext {
-                    return try? tlsc.read(size: size)
-                } else {
-                    var buffer = [UInt8](repeating: 0, count: size)
-                    var len = 0
+                //                if let tlsc = client.tlsContext {
+                //                    return try? tlsc.read(size: size)
+                //                } else {
+                var buffer = [UInt8](repeating: 0, count: size)
+                var len = 0
+                
+                if client.isBlocking {
                     
-                    if client.isBlocking {
+                    if let tlsc = client.tlsContext {
+                        return try? tlsc.read(size: size)
+                    }
+                    let flags = client.readFlags
+                    
+                    len = recv(client.sockfd, &buffer, size, flags)
+                    
+                    if len == 0 {
+                        return nil
+                    }
+                    
+                    if len == -1 {
+                        throw SXSocketError.recv(String.errno)
+                    }
+                    
+                } else {
+                    
+                    var _len = 0
+                    
+                    if let tlsc = client.tlsContext {
+                        //                            var smallbuffer = [UInt8](repeating: 0, count: size)
                         
-                        let flags = client.readFlags
-                        
-                        len = recv(client.sockfd, &buffer, size, flags)
-                        
-                        if len == 0 {
-                            return nil
+                        //                            len = recv(client.sockfd, &smallbuffer, size, client.readFlags)
+                        recv_loop: while true {
+                            guard let data = try? tlsc.read(size: size) else {
+                                return nil
+                            }
+                            
+                            if data.length < 0 {
+                                
+                                switch errno {
+                                case EAGAIN, EWOULDBLOCK:
+                                    break recv_loop
+                                default:
+                                    throw SXSocketError.recv(String.errno)
+                                }
+                                
+                            } else if data.length > 0 {
+                                buffer.append(contentsOf: data.bytesCopied)
+                                _len += data.length
+                            } else {
+                                return nil
+                            }
                         }
-                        
-                        if len == -1 {
-                            throw SXSocketError.recv(String.errno)
-                        }
-                        
                     } else {
-                        
-                        var _len = 0
                         
                         recv_loop: while true {
                             var smallbuffer = [UInt8](repeating: 0, count: size)
@@ -195,11 +225,11 @@ public extension SXServerSocket {
                                 return nil
                             }
                         }
-                        
                     }
-                    
-                    return Data(bytes: buffer, count: len)
                 }
+                
+                return Data(bytes: buffer, count: len)
+                //                }
             }
             
             let write = { (client: SXClientSocket, data: Data) throws -> () in
@@ -228,7 +258,7 @@ public extension SXServerSocket {
                 getpeername(fd, &addr, &socklen)
                 
                 let context = try server.tlsContext?.accept(socket: fd)
-                
+                print("tls accept: \(context)")
                 return try! SXClientSocket(fd: fd,
                                            tls: context,
                                            addrinfo: (addr: addr, len: socklen),

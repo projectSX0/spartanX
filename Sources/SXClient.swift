@@ -98,6 +98,8 @@ public struct SXClientSocket : ClientSocket {
             throw SXSocketError.socket("Unknown domain")
         }
         
+        self.tlsContext = tls
+        
         self.type = sockinfo.type
         self.`protocol` = sockinfo.`protocol`
         self.readBufsize = rwconfig.readBufsize
