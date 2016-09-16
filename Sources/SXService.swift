@@ -101,10 +101,6 @@ public extension SXServerSocket {
         }
     }
     
-//    public func start() {
-////        SXKernelManager.default?.register(for: self)
-//    }
-    
     public func accept() throws -> ClientSocket {
         return try self._accept(self)
     }

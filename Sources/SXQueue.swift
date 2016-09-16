@@ -40,7 +40,7 @@ public class SXQueue: KqueueManagable {
     
     public var manager: SXKernelManager?
     
-    init(fd: Int32, readFrom r: Readable, writeTo w: Writable, with service: SXService) throws {
+    public init(fd: Int32, readFrom r: Readable, writeTo w: Writable, with service: SXService) throws {
         
         self.fd_r = r
         self.fd_w = w

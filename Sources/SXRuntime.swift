@@ -220,7 +220,7 @@ extension SXKernel {
             var ev = epoll_event()
             ev.events = EPOLLIN.rawValue;
             ev.data.fd = queue.q.ident
-            epoll_ctl(kq, EPOLL_CTL_ADD, queue.q.ident, &events)
+            epoll_ctl(kq, EPOLL_CTL_ADD, queue.q.ident, &ev)
             #else
             var k = kevent_t(ident: UInt(queue.q.ident),
                             filter: Int16(EVFILT_READ),
@@ -244,7 +244,7 @@ extension SXKernel {
             var ev = epoll_event()
             ev.events = EPOLLIN.rawValue;
             ev.data.fd = ident
-            epoll_ctl(kq, EPOLL_CTL_DEL, ident, &events)
+            epoll_ctl(kq, EPOLL_CTL_DEL, ident, &ev)
             #else
             var k = kevent_t(ident: UInt(ident),
                             filter: Int16(EVFILT_READ),
