@@ -154,6 +154,16 @@ public class SXKernel {
     
 }
 
+extension SXKernel {
+    func withMutex<Result>(_ execute: () -> Result) -> Result {
+        pthread_mutex_lock(&mutex)
+        let r = execute()
+        pthread_mutex_unlock(&mutex)
+        return r
+    }
+}
+
+
 
 // Kevent
 extension SXKernel {
@@ -258,14 +268,3 @@ extension SXKernel {
         }
     }
 }
-
-
-extension SXKernel {
-    func withMutex<Result>(_ execute: () -> Result) -> Result {
-        pthread_mutex_lock(&mutex)
-        let r = execute()
-        pthread_mutex_unlock(&mutex)
-        return r
-    }
-}
-

@@ -66,8 +66,8 @@ public struct SXClientSocket : ClientSocket {
     internal var _clean: ((SXClientSocket) -> ())?
     
     public var sockfd: Int32
-    public var domain: SXSocketDomains
-    public var type: SXSocketTypes
+    public var domain: SocketDomains
+    public var type: SocketTypes
     public var `protocol`: Int32
     
     public var address: SXSocketAddress?
@@ -81,7 +81,7 @@ public struct SXClientSocket : ClientSocket {
     internal init(fd: Int32,
                   tls: TLSClient?,
                   addrinfo: (addr: sockaddr, len: socklen_t),
-                  sockinfo: (type: SXSocketTypes, `protocol`: Int32),
+                  sockinfo: (type: SocketTypes, `protocol`: Int32),
                   rwconfig: SXClientIOConf,
                   functions: ClientFunctions<SXClientSocket>) throws {
         self.address = try SXSocketAddress(addrinfo.addr, socklen: addrinfo.len)
@@ -95,7 +95,7 @@ public struct SXClientSocket : ClientSocket {
         case MemoryLayout<sockaddr_un>.size:
             self.domain = .unix
         default:
-            throw SXSocketError.socket("Unknown domain")
+            throw SocketError.socket("Unknown domain")
         }
         
         self.tlsContext = tls

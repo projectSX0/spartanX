@@ -45,8 +45,8 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
     public var clientConf: ClientIOConf
     
     public var sockfd: Int32
-    public var domain: SXSocketDomains
-    public var type: SXSocketTypes
+    public var domain: SocketDomains
+    public var type: SocketTypes
     public var `protocol`: Int32
     
     open var backlog: Int
@@ -74,7 +74,7 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
         self.sockfd = socket(Int32(domain.rawValue), type.rawValue, `protocol`)
         
         if sockfd == -1 {
-            throw SXSocketError.socket(String.errno)
+            throw SocketError.socket(String.errno)
         }
         
         if self.type == .stream {
@@ -97,7 +97,7 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
 public extension SXServerSocket {
     public func listen() throws {
         if Foundation.listen(sockfd, Int32(self.backlog)) < 0 {
-            throw SXSocketError.listen(String.errno)
+            throw SocketError.listen(String.errno)
         }
     }
     
@@ -150,9 +150,11 @@ public extension SXServerSocket {
             
             let read = { (client: SXClientSocket) throws -> Data? in
                 let size = client.readBufsize
+                
                 if let tlsc = client.tlsContext {
                     return try tlsc.read(size: size)
                 }
+                
                 var buffer = [UInt8](repeating: 0, count: size)
                 var len = 0
                 
@@ -170,60 +172,35 @@ public extension SXServerSocket {
                     }
                     
                     if len == -1 {
-                        throw SXSocketError.recv(String.errno)
+                        throw SocketError.recv(String.errno)
                     }
                     
                 } else {
                     
                     var _len = 0
                     
-                    if let tlsc = client.tlsContext {
-                       
-                        recv_loop: while true {
-                            guard let data = try? tlsc.read(size: size) else {
-                                return nil
-                            }
-                            
-                            if data.length < 0 {
-                                
-                                switch errno {
-                                case EAGAIN, EWOULDBLOCK:
-                                    break recv_loop
-                                default:
-                                    throw SXSocketError.recv(String.errno)
-                                }
-                                
-                            } else if data.length > 0 {
-                                buffer.append(contentsOf: data.bytesCopied)
-                                _len += data.length
-                            } else {
-                                return nil
-                            }
-                        }
-                    } else {
+                    recv_loop: while true {
+                        var smallbuffer = [UInt8](repeating: 0, count: size)
                         
-                        recv_loop: while true {
-                            var smallbuffer = [UInt8](repeating: 0, count: size)
+                        len = recv(client.sockfd, &smallbuffer, size, client.readFlags)
+                        
+                        if len < 0 {
                             
-                            len = recv(client.sockfd, &smallbuffer, size, client.readFlags)
-                            
-                            if len < 0 {
-                                
-                                switch errno {
-                                case EAGAIN, EWOULDBLOCK:
-                                    break recv_loop
-                                default:
-                                    throw SXSocketError.recv(String.errno)
-                                }
-                                
-                            } else if len > 0 {
-                                buffer.append(contentsOf: smallbuffer)
-                                _len += len
-                            } else {
-                                return nil
+                            switch errno {
+                            case EAGAIN, EWOULDBLOCK:
+                                break recv_loop
+                            default:
+                                throw SocketError.recv(String.errno)
                             }
+                            
+                        } else if len > 0 {
+                            buffer.append(contentsOf: smallbuffer)
+                            _len += len
+                        } else {
+                            return nil
                         }
                     }
+                
                 }
                 
                 return Data(bytes: buffer, count: len)
@@ -235,7 +212,7 @@ public extension SXServerSocket {
                     _ = try tlsc.write(data: data)
                 } else {
                     if send(client.sockfd, data.bytes, data.length, 0) == -1 {
-                        throw SXSocketError.send("send: \(String.errno)")
+                        throw SocketError.send("send: \(String.errno)")
                     }
                 }
             }

@@ -30,29 +30,7 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-public enum SXSocketError: Error {
-    case nonImplementedDomain
-    case socket(String)
-    case setSockOpt(String)
-    case bind(String)
-    case connect(String)
-    case send(String)
-    case recv(String)
-    case listen(String)
-    case unconnectable
-    case notInetDomain
-}
-
-public enum SXAddrError: Error {
-    case getAddrInfo(String)
-    case unknownDomain
-}
-
-public enum SXError: Error {
-    case duplicatedIdentInRoutingTable
-}
-
-public enum SXSocketDomains: UInt8 {
+public enum SocketDomains: UInt8 {
     case unspec     = 0
     case unix       = 1
     case inet       = 2
@@ -94,7 +72,7 @@ public enum SXSocketDomains: UInt8 {
     case max        = 40
 }
 
-public enum SXSocketTypes: Int32 {
+public enum SocketTypes: Int32 {
     case stream    = 1
     case dgram     = 2
     case raw       = 3

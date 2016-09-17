@@ -35,8 +35,8 @@ import CKit
 
 public protocol SocketType {
     var sockfd: Int32 { get set }
-    var domain: SXSocketDomains { get set }
-    var type: SXSocketTypes { get set }
+    var domain: SocketDomains { get set }
+    var type: SocketTypes { get set }
     var `protocol`: Int32 { get set }
 }
 
@@ -51,7 +51,7 @@ public protocol ClientSocket : SocketType, Readable, Writable {
 }
 
 public protocol ConnectionSocket : SocketType, Addressable, Readable, Writable {
-    var address: SXSocketAddress? { get set }
+    
 }
 
 public protocol Readable {
@@ -94,11 +94,11 @@ public extension Addressable where Self : SocketType {
         var yes = true
         
         if setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, UInt32(MemoryLayout<Int32>.size)) == -1 {
-            throw SXSocketError.setSockOpt(String.errno)
+            throw SocketError.setsockopt(String.errno)
         }
         
         guard let address = address else {
-            throw SXSocketError.bind("address is nil")
+            throw SocketError.bind("address is nil")
         }
         
         switch address {
@@ -113,7 +113,7 @@ public extension Addressable where Self : SocketType {
         }
         
         if err == -1 {
-            throw SXSocketError.bind(String.errno)
+            throw SocketError.bind(String.errno)
         }
     }
 }

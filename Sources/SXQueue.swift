@@ -33,8 +33,8 @@
 public class SXQueue: KqueueManagable {
     
     public var ident: Int32
-    public var fd_r: Readable
-    public var fd_w: Writable
+    public var readAgent: Readable
+    public var writeAgent: Writable
     
     public var service: SXService
     
@@ -42,16 +42,16 @@ public class SXQueue: KqueueManagable {
     
     public init(fd: Int32, readFrom r: Readable, writeTo w: Writable, with service: SXService) throws {
         
-        self.fd_r = r
-        self.fd_w = w
+        self.readAgent = r
+        self.writeAgent = w
         self.service = service
         self.ident = fd
         SXKernelManager.default?.register(service: service, queue: self)
     }
     
     public func terminate() {
-        self.fd_r.done()
-        self.fd_w.done()
+        self.readAgent.done()
+        self.writeAgent.done()
         SXKernelManager.default?.unregister(for: ident)
     }
    
@@ -75,8 +75,8 @@ public class SXQueue: KqueueManagable {
     #else
     public func runloop(kdata: Int, udata: UnsafeRawPointer!) {
         do {
-            self.fd_r.readBufsize = kdata + 1
-            if let data = try self.fd_r.read() {
+            self.readAgent.readBufsize = kdata + 1
+            if let data = try self.readAgent.read() {
                 
                 if !self.service.dataHandler(self, data) {
                     return terminate()

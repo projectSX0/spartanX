@@ -25,34 +25,25 @@
 //  The views and conclusions contained in the software and documentation are those
 //  of the authors and should not be interpreted as representing official policies,
 //  either expressed or implied, of the FreeBSD Project.
+//
+//  Created by Yuji on 9/17/16.
+//  Copyright © 2016 yuuji. All rights reserved.
+//
 
-#if os(Linux) || os(FreeBSD)
-    import Glibc
-#else
-    import Darwin
-#endif
+import Foundation
 
-public struct SXSocketConfiguation {
-    public var address: SXSocketAddress
-    public var port: in_port_t
-    
-    public var domain: SocketDomains {
-        return address.sockdomain()!
-    }
-    
-    public var type: SocketTypes
-    public var `protocol`: Int32
-    public var backlog : Int
-    
-    public init(domain: SocketDomains = .unspec,
-                type: SocketTypes = .stream,
-                port: in_port_t,
-                backlog: Int = 50,
-                using `protocol`: Int32 = 0) {
-        self.address = try! SXSocketAddress(withDomain: domain, port: port)
-        self.type = type
-        self.port = port
-        self.backlog = backlog
-        self.`protocol` = `protocol`
-    }
+public enum SocketError: Error {
+    case socket(String)
+    case setsockopt(String)
+    case bind(String)
+    case connect(String)
+    case send(String)
+    case recv(String)
+    case listen(String)
+    case unconnectable
+    case nonInetDomain
+}
+
+public enum RuntimeError: Error {
+    case duplicatedIdentifier
 }

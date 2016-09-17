@@ -39,12 +39,70 @@ public let UNIX_PATH_MAX = 104
 public let UNIX_PATH_MAX = 108
 #endif
 
-public enum DNSLookupHint {
-    case Flags(Int32)
-    case Family(Int32)
-    case SockType(Int32)
-    case `Protocol`(Int32)
-    case Canonname(String)
+public enum SXSocketAddress {
+    case inet(sockaddr_in)
+    case inet6(sockaddr_in6)
+    case unix(sockaddr_un)
+    
+    public var ipaddress: String {
+
+        var buffer = [Int8](repeating: 0, count: Int(PATH_MAX))
+        switch self {
+        case var .inet(`in`):
+            inet_ntop(AF_INET, pointer(of: &`in`.sin_addr) , &buffer, socklen_t(MemoryLayout<sockaddr_in>.size))
+        case var .inet6(in6):
+            inet_ntop(AF_INET6, pointer(of: &in6.sin6_addr) , &buffer, socklen_t(MemoryLayout<sockaddr_in6>.size))
+        case var .unix(un):
+            strncpy(&buffer, pointer(of: &un.sun_path).cast(to: Int8.self), Int(PATH_MAX))
+        }
+        
+        return String(cString: buffer)
+    }
+    
+    public enum Error: Swift.Error {
+        case nonImplementedDomain
+    }
+}
+
+public extension SXSocketAddress {
+    
+    
+    /// port number of the address (if available) in network byte order
+    public var port: in_port_t? {
+        switch self {
+        case let .inet(addr):
+            return addr.sin_port
+        case let .inet6(addr):
+            return addr.sin6_port
+        case .unix:
+            return nil
+        }
+    }
+    
+    public var socklen: socklen_t {
+        get {
+            switch self {
+            case .inet6(_):
+                return socklen_t(MemoryLayout<sockaddr_in6>.size)
+            case .inet(_):
+                return socklen_t(MemoryLayout<sockaddr_in>.size)
+            case .unix(_):
+                return socklen_t(MemoryLayout<sockaddr_un>.size)
+            }
+        }
+    }
+    
+    public func sockdomain() -> SocketDomains? {
+        switch self.socklen {
+        case UInt32(MemoryLayout<sockaddr_in>.size):
+            return .inet
+        case UInt32(MemoryLayout<sockaddr_in6>.size):
+            return .inet6
+        case UInt32(MemoryLayout<sockaddr_un>.size):
+            return .unix
+        default: return nil
+        }
+    }
 }
 
 extension sockaddr_in {
@@ -83,43 +141,7 @@ extension sockaddr_in6 {
     }
 }
 
-public enum SXSocketAddress {
-    case inet(sockaddr_in)
-    case inet6(sockaddr_in6)
-    case unix(sockaddr_un)
-    
-    public var ipaddress: String {
-        #if swift(>=3)
-            var buffer = [Int8](repeating: 0, count: Int(PATH_MAX))
-        #else
-            var buffer = [Int8](count: Int(255), repeatedValue: 0)
-        #endif
-        switch self {
-        case var .inet(`in`):
-            inet_ntop(AF_INET, pointer(of: &`in`.sin_addr) , &buffer, socklen_t(MemoryLayout<sockaddr_in>.size))
-        case var .inet6(in6):
-            inet_ntop(AF_INET6, pointer(of: &in6.sin6_addr) , &buffer, socklen_t(MemoryLayout<sockaddr_in6>.size))
-        case var .unix(un):
-            strncpy(&buffer, pointer(of: &un.sun_path).cast(to: Int8.self), Int(PATH_MAX))
-        }
-        #if swift(>=3)
-            return String(cString: buffer)
-        #else
-            return String(CString: buffer, encoding: NSASCIIStringEncoding)!
-        #endif
-    }
-    
-    public func sockdomain() -> SXSocketDomains? {
-        switch self.socklen {
-        case UInt32(MemoryLayout<sockaddr_in>.size):
-            return .inet
-        case UInt32(MemoryLayout<sockaddr_in6>.size):
-            return .inet6
-        case UInt32(MemoryLayout<sockaddr_un>.size):
-            return .unix
-        default: return nil
-        }
-    }
+public extension SXSocketAddress {
     
     public init(_ addr_: sockaddr, socklen: socklen_t) throws {
         var addr = addr_
@@ -130,34 +152,34 @@ public enum SXSocketAddress {
             self = .inet6(mutablePointer(of: &addr).cast(to: sockaddr_in6.self).pointee)
             
         default:
-            throw SXSocketError.nonImplementedDomain
+            throw Error.nonImplementedDomain
         }
     }
     
-    public static func boardcastAddr(port: in_port_t = 0) throws -> SXSocketAddress {
-        return SXSocketAddress(address: "255.255.255.255", withDomain: .inet, port: port)!
-    }
+//    public static func boardcastAddr(port: in_port_t = 0) throws -> SXSocketAddress {
+//        return SXSocketAddress(address: "255.255.255.255", withDomain: .inet, port: port)!
+//    }
     
-    public init(withDomain domain: SXSocketDomains, port: in_port_t) throws {
+    public init(withDomain domain: SocketDomains, port: in_port_t) throws {
         switch domain {
         case .inet:
             self = SXSocketAddress.inet(sockaddr_in(port: port.bigEndian))
         case .inet6:
             self = SXSocketAddress.inet6(sockaddr_in6(port: port.bigEndian))
         default:
-            throw SXSocketError.nonImplementedDomain
+            throw Error.nonImplementedDomain
         }
     }
     
-    public init?(address: String, withDomain domain: SXSocketDomains, port: in_port_t) {
+    public init?(address: String, withDomain domain: SocketDomains, port: in_port_t) {
         switch domain {
             
         case .inet:
             var sockaddr = sockaddr_in(port: port.bigEndian)
             inet_pton(AF_INET,
-                  address.cString(using: .ascii),
-                  UnsafeMutableRawPointer(mutablePointer(of: &sockaddr.sin_addr)))
-
+                      address.cString(using: .ascii),
+                      UnsafeMutableRawPointer(mutablePointer(of: &sockaddr.sin_addr)))
+            
             self = .inet(sockaddr)
             
         case .inet6:
@@ -165,14 +187,14 @@ public enum SXSocketAddress {
             inet_pton(AF_INET6,
                       address.cString(using: .ascii),
                       UnsafeMutableRawPointer(mutablePointer(of: &sockaddr.sin6_addr)))
-
+            
             self = .inet6(sockaddr)
             
         case .unix:
             var sockaddr = sockaddr_un()
             sockaddr.sun_family = sa_family_t(AF_UNIX)
             #if !os(Linux)
-            sockaddr.sun_len = UInt8(MemoryLayout<sockaddr_un>.size)
+                sockaddr.sun_len = UInt8(MemoryLayout<sockaddr_un>.size)
             #endif
             let cstr = address.cString(using: .utf8)!
             strncpy(mutablePointer(of: &(sockaddr.sun_path)).cast(to: Int8.self), cstr, UNIX_PATH_MAX)
@@ -182,258 +204,6 @@ public enum SXSocketAddress {
         default:
             return nil
         }
-    }
-    
-    public var socklen: socklen_t {
-        get {
-            switch self {
-            case .inet6(_):
-                return socklen_t(MemoryLayout<sockaddr_in6>.size)
-            case .inet(_):
-                return socklen_t(MemoryLayout<sockaddr_in>.size)
-            case .unix(_):
-                return socklen_t(MemoryLayout<sockaddr_un>.size)
-            }
-        }
-    }
-
-    public static func DNSLookup(hostname: String, service: String, hints: [DNSLookupHint] = []) throws -> SXSocketAddress? {
-        
-        var info: UnsafeMutablePointer<addrinfo>? = nil
-        var cinfo: UnsafeMutablePointer<addrinfo>? = nil
-        var ret: SXSocketAddress
-        
-        var hint = addrinfo()
-        for hint_ in hints {
-            switch hint_ {
-            case var .Flags(i): hint.ai_flags = i
-            case var .Family(i): hint.ai_family = i
-            case var .SockType(i): hint.ai_socktype = i
-            case var .Protocol(i): hint.ai_protocol = i
-            case var .Canonname(s):
-                var ss = s.cInt8String ?? []
-                hint.ai_canonname = UnsafeMutablePointer<Int8>(mutating: ss)
-            }
-        }
-        
-        if getaddrinfo(hostname.cString(using: .ascii)!,
-                       service.cString(using: .ascii)!,
-                       &hint,
-                       &info) != 0 {
-            
-            throw SXAddrError.getAddrInfo(String.errno)
-        }
-        
-        defer {
-            freeaddrinfo(info)
-        }
-        
-        cinfo = info
-        
-        while cinfo != nil {
-            cinfo = cinfo!.pointee.ai_next
-            let port = (UInt16(getservbyname(service.cString(using: String.Encoding.ascii)!, nil).pointee.s_port))
-            let addr = cinfo!.pointee.ai_addr
-            switch cinfo!.pointee.ai_family {
-            case AF_INET:
-                ret = SXSocketAddress.inet(sockaddr_in(port: port,
-                                                        addr: addr!.cast(to: sockaddr_in.self).pointee.sin_addr))
-                return ret
-                
-            case AF_INET6:
-                ret = SXSocketAddress.inet6(sockaddr_in6(port: port,
-                                                         addr: addr!.cast(to: sockaddr_in6.self).pointee.sin6_addr))
-                return ret
-                
-            default:
-                continue;
-            }
-        }
-        
-        return nil
-    }
-    
-    public static func DNSLookup(hostname: String, service: String, hints: [DNSLookupHint] = []) throws -> [SXSocketAddress] {
-        
-        var info: UnsafeMutablePointer<addrinfo>? = nil
-        var cinfo: UnsafeMutablePointer<addrinfo>? = nil
-        var ret = [SXSocketAddress]()
-        
-        var hint = addrinfo()
-        for hint_ in hints {
-            switch hint_ {
-            case var .Flags(i): hint.ai_flags = i
-            case var .Family(i): hint.ai_family = i
-            case var .SockType(i): hint.ai_socktype = i
-            case var .Protocol(i): hint.ai_protocol = i
-            case var .Canonname(s):
-                var ss = s.cInt8String ?? []
-                hint.ai_canonname = UnsafeMutablePointer<Int8>(mutating: ss)
-            }
-        }
-        
-        if getaddrinfo(hostname.cString(using: .ascii)!,
-                       service.cString(using: .ascii)!,
-                       &hint,
-                       &info) != 0 {
-            
-            throw SXAddrError.getAddrInfo(String.errno)
-        }
-        
-        func clean() {
-            freeaddrinfo(info)
-        }
-        
-        defer {
-            clean()
-        }
-        
-        cinfo = info
-        
-        while cinfo != nil {
-            cinfo = cinfo!.pointee.ai_next
-            
-            let port = (UInt16(getservbyname(service.cString(using: String.Encoding.ascii)!, nil).pointee.s_port))
-            
-            if cinfo == nil {
-                continue
-            }
-            
-            let addr = cinfo!.pointee.ai_addr
-            
-            switch cinfo!.pointee.ai_family {
-                
-            case AF_INET:
-                let addr = SXSocketAddress.inet(sockaddr_in(port: port,
-                                                            addr: addr!.cast(to: sockaddr_in.self).pointee.sin_addr))
-                ret.append(addr)
-                
-            case AF_INET6:
-                let addr = SXSocketAddress.inet6(sockaddr_in6(port: port,
-                                                              addr: addr!.cast(to: sockaddr_in6.self).pointee.sin6_addr))
-                ret.append(addr)
-                
-            default:
-                continue;
-            }
-        }
-        
-        return ret
-    }
-    
-    public static func DNSLookup(hostname: String, port: in_port_t, hints: [DNSLookupHint] = []) throws -> SXSocketAddress? {
-        
-        var info: UnsafeMutablePointer<addrinfo>? = nil
-        var cinfo: UnsafeMutablePointer<addrinfo>? = nil
-        var ret: SXSocketAddress
-        
-        var hint = addrinfo()
-        for hint_ in hints {
-            switch hint_ {
-            case var .Flags(i): hint.ai_flags = i
-            case var .Family(i): hint.ai_family = i
-            case var .SockType(i): hint.ai_socktype = i
-            case var .Protocol(i): hint.ai_protocol = i
-            case var .Canonname(s):
-                var ss = s.cInt8String ?? []
-                hint.ai_canonname = UnsafeMutablePointer<Int8>(mutating: ss)
-            }
-        }
-        
-        if getaddrinfo(hostname.cString(using: .ascii)!,
-                       nil,
-                       &hint,
-                       &info) != 0 {
-            
-            throw SXAddrError.getAddrInfo(String.errno)
-        }
-        
-        func clean() {
-            freeaddrinfo(info)
-        }
-        
-        defer {
-            clean()
-        }
-        
-        cinfo = info
-        
-        while cinfo != nil {
-            cinfo = cinfo!.pointee.ai_next
-
-            let addr = cinfo!.pointee.ai_addr
-            
-            switch cinfo!.pointee.ai_family {
-            case AF_INET:
-                ret = SXSocketAddress.inet(sockaddr_in(port: port,
-                                                            addr: addr!.cast(to: sockaddr_in.self).pointee.sin_addr))
-                return ret
-                
-            case AF_INET6:
-                ret = SXSocketAddress.inet6(sockaddr_in6(port: port,
-                                                         addr: addr!.cast(to: sockaddr_in6.self).pointee.sin6_addr))
-                return ret
-                
-            default:
-                continue;
-            }
-        }
-        
-        return nil
-    }
-    
-    public static func DNSLookup(hostname: String, port:in_port_t, hints: [DNSLookupHint] = []) throws -> [SXSocketAddress] {
-        
-        var info: UnsafeMutablePointer<addrinfo>? = nil
-        var cinfo: UnsafeMutablePointer<addrinfo>? = nil
-        var ret = [SXSocketAddress]()
-        
-        var hint = addrinfo()
-        for hint_ in hints {
-            switch hint_ {
-            case var .Flags(i): hint.ai_flags = i
-            case var .Family(i): hint.ai_family = i
-            case var .SockType(i): hint.ai_socktype = i
-            case var .Protocol(i): hint.ai_protocol = i
-            case var .Canonname(s):
-                var ss = s.cInt8String ?? []
-                hint.ai_canonname = UnsafeMutablePointer<Int8>(mutating: ss)
-            }
-        }
-        
-        if getaddrinfo(hostname.cString(using: .ascii)!,
-                       nil,
-                       &hint,
-                       &info) != 0 {
-            
-            throw SXAddrError.getAddrInfo(String.errno)
-        }
-        
-        
-        defer {
-            freeaddrinfo(info)
-        }
-        
-        cinfo = info
-        
-        while cinfo != nil {
-            cinfo = cinfo!.pointee.ai_next
-            let addr = cinfo!.pointee.ai_addr
-            switch cinfo!.pointee.ai_family {
-            case AF_INET:
-                let addr = SXSocketAddress.inet(sockaddr_in(port: port,
-                                                            addr: addr!.cast(to: sockaddr_in.self).pointee.sin_addr))
-                ret.append(addr)
-            case AF_INET6:
-                let addr = SXSocketAddress.inet6(sockaddr_in6(port: port,
-                                                              addr: addr!.cast(to: sockaddr_in6.self).pointee.sin6_addr))
-                ret.append(addr)
-            default:
-                continue;
-            }
-        }
-        
-        return ret
     }
 }
 

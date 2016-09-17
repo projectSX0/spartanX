@@ -12,11 +12,10 @@ import swiftTLS
 
 public struct SXConnectionSocket: ConnectionSocket
 {
-
     static let defaultBufsize = 5242880
     public var sockfd: Int32
-    public var domain: SXSocketDomains
-    public var type: SXSocketTypes
+    public var domain: SocketDomains
+    public var type: SocketTypes
     public var `protocol`: Int32
     public var port: in_port_t?
     var tlsContext: TLSClient?
@@ -39,7 +38,7 @@ extension SXConnectionSocket: KqueueManagable {
             _ = try tlsc.write(data: data)
         } else {
             if send(sockfd, data.bytes, data.length, 0) == -1 {
-                throw SXSocketError.send("send: \(String.errno)")
+                throw SocketError.send("send: \(String.errno)")
             }
         }
     }
@@ -75,7 +74,7 @@ extension SXConnectionSocket: KqueueManagable {
                 }
                 
                 if len == -1 {
-                    throw SXSocketError.recv(String.errno)
+                    throw SocketError.recv(String.errno)
                 }
             } else {
                 var _len = 0
@@ -91,7 +90,7 @@ extension SXConnectionSocket: KqueueManagable {
                         case EAGAIN, EWOULDBLOCK:
                             break recv_loop
                         default:
-                            throw SXSocketError.recv(String.errno)
+                            throw SocketError.recv(String.errno)
                         }
                         
                     } else if len > 0 {
@@ -153,8 +152,8 @@ extension SXConnectionSocket: KqueueManagable {
 
 //MARK: - initializers
 public extension SXConnectionSocket {
-    public init(tls: Bool = false, hostname: String, service: String, type: SXSocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
-        let addresses: [SXSocketAddress] = try! SXSocketAddress.DNSLookup(hostname: hostname, service: service)
+    public init(tls: Bool = false, hostname: String, service: String, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+        let addresses: [SXSocketAddress] = try! DNS.lookup(hostname: hostname, service: service)
         var fd: Int32 = -1
         self.type = type
         self.domain = .unspec
@@ -178,12 +177,12 @@ public extension SXConnectionSocket {
                 self.domain = .inet6
                 break searchAddress
             default:
-                throw SXSocketError.unconnectable
+                throw SocketError.unconnectable
             }
         }
         
         if fd == -1 {
-            throw SXSocketError.connect(String.errno)
+            throw SocketError.connect(String.errno)
         }
         
         self.sockfd = fd
@@ -196,8 +195,8 @@ public extension SXConnectionSocket {
     }
     
     
-    public init(tls: Bool = false, hostname: String, port: in_port_t, type: SXSocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
-        let addresses: [SXSocketAddress] = try! SXSocketAddress.DNSLookup(hostname: hostname, port: port)
+    public init(tls: Bool = false, hostname: String, port: in_port_t, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+        let addresses: [SXSocketAddress] = try! DNS.lookup(hostname: hostname, port: port)
         var fd: Int32 = -1
         self.type = type
         self.domain = .unspec
@@ -221,12 +220,12 @@ public extension SXConnectionSocket {
                 self.domain = .inet6
                 break searchAddress
             default:
-                throw SXSocketError.notInetDomain
+                throw SocketError.nonInetDomain
             }
         }
         
         if fd == -1 {
-            throw SXSocketError.unconnectable
+            throw SocketError.unconnectable
         }
         
         self.sockfd = fd
@@ -237,7 +236,7 @@ public extension SXConnectionSocket {
         }
     }
     
-    public init(ipv4: String, port: in_port_t, type: SXSocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+    public init(ipv4: String, port: in_port_t, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
         self.sockfd = socket(AF_INET, type.rawValue, `protocol`)
         self.domain = .inet
         self.type = type
@@ -247,14 +246,14 @@ public extension SXConnectionSocket {
         switch self.address! {
         case var .inet(addr):
             if Foundation.connect(self.sockfd, pointer(of: &addr).cast(to: sockaddr.self), self.address!.socklen) == -1 {
-                throw SXSocketError.connect(String.errno)
+                throw SocketError.connect(String.errno)
             }
-        default: throw SXSocketError.nonImplementedDomain
+        default: throw DNS.Error.unknownDomain
         }
         
     }
     
-    public init(tls: Bool = true, ipv6: String, port: in_port_t, type: SXSocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+    public init(tls: Bool = true, ipv6: String, port: in_port_t, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
         self.sockfd = socket(AF_INET6, type.rawValue, `protocol`)
         self.domain = .inet6
         self.type = type
@@ -264,14 +263,14 @@ public extension SXConnectionSocket {
         switch self.address! {
         case var .inet6(addr):
             if Foundation.connect(self.sockfd, pointer(of: &addr).cast(to: sockaddr.self), self.address!.socklen) == -1 {
-                throw SXSocketError.connect(String.errno)
+                throw SocketError.connect(String.errno)
             }
-        default: throw SXSocketError.nonImplementedDomain
+        default: throw DNS.Error.unknownDomain
         }
         
     }
     
-    public init?(ipv4: String, service: String, type: SXSocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+    public init?(ipv4: String, service: String, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
         let port = (UInt16(getservbyname(service.cString(using: String.Encoding.ascii)!, nil).pointee.s_port)).byteSwapped
         self.sockfd = socket(AF_INET, type.rawValue, `protocol`)
         self.domain = .inet
@@ -282,13 +281,13 @@ public extension SXConnectionSocket {
         switch self.address! {
         case var .inet(addr):
             if Foundation.connect(self.sockfd, pointer(of: &addr).cast(to: sockaddr.self), self.address!.socklen) == -1 {
-                throw SXSocketError.connect(String.errno)
+                throw SocketError.connect(String.errno)
             }
-        default: throw SXSocketError.nonImplementedDomain
+        default: throw DNS.Error.unknownDomain
         }
     }
     
-    public init(ipv6: String, service: String, type: SXSocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+    public init(ipv6: String, service: String, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
         let port = (UInt16(getservbyname(service.cString(using: String.Encoding.ascii)!, nil).pointee.s_port)).byteSwapped
         self.sockfd = socket(AF_INET6, type.rawValue, `protocol`)
         self.domain = .inet6
@@ -299,9 +298,9 @@ public extension SXConnectionSocket {
         switch self.address! {
         case var .inet6(addr):
             if Foundation.connect(self.sockfd, pointer(of: &addr).cast(to: sockaddr.self), self.address!.socklen) == -1 {
-                throw SXSocketError.connect(String.errno)
+                throw SocketError.connect(String.errno)
             }
-        default: throw SXSocketError.nonImplementedDomain
+        default: throw DNS.Error.unknownDomain
         }
         
     }
