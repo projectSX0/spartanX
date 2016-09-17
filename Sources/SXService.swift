@@ -151,7 +151,7 @@ public extension SXServerSocket {
             let read = { (client: SXClientSocket) throws -> Data? in
                 let size = client.readBufsize
                 if let tlsc = client.tlsContext {
-                    return try? tlsc.read(size: size)
+                    return try tlsc.read(size: size)
                 }
                 var buffer = [UInt8](repeating: 0, count: size)
                 var len = 0
