@@ -39,7 +39,7 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
     public var address: SXSocketAddress?
     public var port: in_port_t?
     
-    public var manager = SXKernelManager.default
+    public var manager: SXKernel?
     
     public var tlsContext: TLSServer?
     public var clientConf: ClientIOConf
@@ -104,20 +104,8 @@ public extension SXServerSocket {
     public func accept() throws -> ClientSocket {
         return try self._accept(self)
     }
-    
-    #if os(Linux)
-    public func runloop() {
-    do {
-    
-    let client = try self.accept()
-    _ = try SXQueue(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
-    
-    } catch {
-    print(error)
-    }
-    }
-    #else
-    public func runloop(kdata: Int, udata: UnsafeRawPointer!) {
+
+    public func runloop(_ ev: event) {
         do {
             
             let client = try self.accept()
@@ -127,7 +115,6 @@ public extension SXServerSocket {
             print(error)
         }
     }
-    #endif
     
     public func done() {
         close(self.sockfd)
@@ -139,6 +126,62 @@ public extension SXServerSocket {
 }
 
 //MARK: - Default
+@inline(__always)
+private func sock_read(client: SXClientSocket) throws -> Data?  {
+    
+    let size = client.readBufsize
+    
+    var buffer = [UInt8](repeating: 0, count: size)
+    var len = 0
+    
+    let flags = client.readFlags
+    
+    len = recv(client.sockfd, &buffer, size, flags)
+    
+    if len == 0 {
+        return nil
+    }
+    
+    if len == -1 {
+        throw SocketError.recv(String.errno)
+    }
+    
+    return Data(bytes: buffer, count: len)
+}
+
+@inline(__always)
+private func sock_read_nonblock(client: SXClientSocket) throws -> Data? {
+    let size = client.readBufsize
+    
+    var buffer = [UInt8](repeating: 0, count: size)
+    var len = 0
+    
+    var _len = 0
+    
+    recv_loop: while true {
+        var smallbuffer = [UInt8](repeating: 0, count: size)
+        
+        len = recv(client.sockfd, &smallbuffer, size, client.readFlags)
+        
+        if len < 0 {
+            
+            switch errno {
+            case EAGAIN, EWOULDBLOCK:
+                break recv_loop
+            default:
+                throw SocketError.recv(String.errno)
+            }
+            
+        } else if len > 0 {
+            buffer.append(contentsOf: smallbuffer)
+            _len += len
+        } else {
+            return nil
+        }
+    }
+    
+    return Data(bytes: buffer, count: len)
+}
 
 public extension SXServerSocket {
     public static func `default`(service: SXService,
@@ -155,56 +198,11 @@ public extension SXServerSocket {
                     return try tlsc.read(size: size)
                 }
                 
-                var buffer = [UInt8](repeating: 0, count: size)
-                var len = 0
-                
                 if client.isBlocking {
-                    
-                    if let tlsc = client.tlsContext {
-                        return try? tlsc.read(size: size)
-                    }
-                    let flags = client.readFlags
-                    
-                    len = recv(client.sockfd, &buffer, size, flags)
-                    
-                    if len == 0 {
-                        return nil
-                    }
-                    
-                    if len == -1 {
-                        throw SocketError.recv(String.errno)
-                    }
-                    
+                    return try sock_read(client: client)
                 } else {
-                    
-                    var _len = 0
-                    
-                    recv_loop: while true {
-                        var smallbuffer = [UInt8](repeating: 0, count: size)
-                        
-                        len = recv(client.sockfd, &smallbuffer, size, client.readFlags)
-                        
-                        if len < 0 {
-                            
-                            switch errno {
-                            case EAGAIN, EWOULDBLOCK:
-                                break recv_loop
-                            default:
-                                throw SocketError.recv(String.errno)
-                            }
-                            
-                        } else if len > 0 {
-                            buffer.append(contentsOf: smallbuffer)
-                            _len += len
-                        } else {
-                            return nil
-                        }
-                    }
-                
+                    return try sock_read_nonblock(client: client)
                 }
-                
-                return Data(bytes: buffer, count: len)
-                
             }
             
             let write = { (client: SXClientSocket, data: Data) throws -> () in

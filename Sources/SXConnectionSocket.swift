@@ -24,7 +24,7 @@ public struct SXConnectionSocket: ConnectionSocket
     public var readBufsize: size_t
     
     var handler: ((Data?) -> Bool)?
-    public var manager: SXKernelManager?
+    public var manager: SXKernel?
     
     public var errhandler: ((Error) -> Bool)?
 }
@@ -106,10 +106,13 @@ extension SXConnectionSocket: KqueueManagable {
         }
     }
     
-    #if os(Linux)
-    public func runloop() {
+    public func runloop(_ ev: event) {
         do {
+            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(FreeBSD) || os(PS4)
+            let payload = try self.read(bufsize: ev.data)
+            #else
             let payload = try self.read()
+            #endif
             if handler?(payload) == false {
                 done()
             }
@@ -123,28 +126,11 @@ extension SXConnectionSocket: KqueueManagable {
             }
         }
     }
-    #else
-    public func runloop(kdata: Int, udata: UnsafeRawPointer!) {
-        do {
-            let payload = try self.read(bufsize: kdata)
-            if handler?(payload) == false {
-                done()
-            }
-        } catch {
-            if let errh = errhandler {
-                if !errh(error) {
-                    done()
-                }
-            } else {
-                done()
-            }
-        }
-    }
-    #endif
+//    #endif
     
     public func done() {
-        if var manager = self.manager {
-            manager.unregister(for: self.ident)
+        if let manager = self.manager {
+            manager.remove(ident: self.ident)
         }
         close(self.sockfd)
     }

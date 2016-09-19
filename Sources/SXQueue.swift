@@ -38,7 +38,7 @@ public class SXQueue: KqueueManagable {
     
     public var service: SXService
     
-    public var manager: SXKernelManager?
+    public var manager: SXKernel?
     
     public init(fd: Int32, readFrom r: Readable, writeTo w: Writable, with service: SXService) throws {
         
@@ -52,30 +52,34 @@ public class SXQueue: KqueueManagable {
     public func terminate() {
         self.readAgent.done()
         self.writeAgent.done()
-        SXKernelManager.default?.unregister(for: ident)
+//        SXKernelManager.default?.unregister(for: ident)
     }
    
-    #if os(Linux)
-    public func runloop() {
+//    #if os(Linux)
+//    public func runloop() {
+//        do {
+//            if let data = try self.fd_r.read() {
+//            
+//                if !self.service.dataHandler(self, data) {
+//                    return terminate()
+//                }
+//                
+//            } else {
+//                return terminate()
+//            }
+//            
+//        } catch {
+//            self.service.errHandler?(self, error)
+//        }
+//    }
+//    #else
+//    public func runloop(kdata: Int, udata: UnsafeRawPointer!) {
+    public func runloop(_ ev: event) {
+        
         do {
-            if let data = try self.fd_r.read() {
-            
-                if !self.service.dataHandler(self, data) {
-                    return terminate()
-                }
-                
-            } else {
-                return terminate()
-            }
-            
-        } catch {
-            self.service.errHandler?(self, error)
-        }
-    }
-    #else
-    public func runloop(kdata: Int, udata: UnsafeRawPointer!) {
-        do {
-            self.readAgent.readBufsize = kdata + 1
+            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(FreeBSD) || os(PS4)
+            self.readAgent.readBufsize = ev.data + 1
+            #endif
             if let data = try self.readAgent.read() {
                 
                 if !self.service.dataHandler(self, data) {
@@ -89,6 +93,8 @@ public class SXQueue: KqueueManagable {
         } catch {
             self.service.errHandler?(self, error)
         }
+        
+        self.manager?.register(self)
     }
-    #endif
+//    #endif
 }
