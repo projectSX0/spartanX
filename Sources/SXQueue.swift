@@ -52,7 +52,7 @@ public class SXQueue: KqueueManagable {
     public func terminate() {
         self.readAgent.done()
         self.writeAgent.done()
-//        SXKernelManager.default?.unregister(for: ident)
+        SXKernelManager.default?.unregister(for: ident)
     }
    
 //    #if os(Linux)
