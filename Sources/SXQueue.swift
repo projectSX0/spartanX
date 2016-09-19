@@ -94,8 +94,8 @@ public class SXQueue: KqueueManagable {
             self.service.errHandler?(self, error)
         }
         
-        print("re-register")
-        self.manager?.register(self)
+//        print("re-register")
+//        self.manager?.register(self)
     }
 //    #endif
 }
