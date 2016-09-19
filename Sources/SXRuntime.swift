@@ -216,7 +216,7 @@ extension SXKernel {
         
         if nev < 0 {
             self.thread.exec {
-                kqueue_runloop()
+                self.kqueue_runloop()
             }
         }
         
@@ -235,7 +235,7 @@ extension SXKernel {
         }
         
         self.thread.exec {
-            kqueue_runloop()
+            self.kqueue_runloop()
         }
     }
     
@@ -245,7 +245,7 @@ extension SXKernel {
         }
         
         self.thread.execute {
-            kqueue_runloop()
+            self.kqueue_runloop()
 //            kqueue_loop: while true {
 //                
             
