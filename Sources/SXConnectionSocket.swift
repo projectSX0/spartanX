@@ -130,7 +130,7 @@ extension SXConnectionSocket: KqueueManagable {
     
     public func done() {
         if let manager = self.manager {
-            manager.remove(ident: self.ident)
+            manager.remove(ident: self.ident, for: .read)
         }
         close(self.sockfd)
     }

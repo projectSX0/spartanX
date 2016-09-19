@@ -60,15 +60,6 @@ public extension SXKernelManager {
     public static func initializeDefault() {
         `default` = SXKernelManager(maxCPU: 1, evs_cpu: 5120)
     }
-//    
-//    internal mutating func register(service: SXService, queue: SXQueue) {
-//        let queue = kernel_queue_wrap(queue)
-//        register(queue: queue)
-//    }
-////    
-//    internal mutating func register(for managable: KqueueManagable) {
-//        
-//    }
     
     public mutating func manage<Managable: KqueueManagable>(_ managable: Managable, setup: ((inout Managable) -> ())?) {
         var target = managable
@@ -88,9 +79,9 @@ public extension SXKernelManager {
         _leastBusyKernel?.register(queue)
     }
     
-    internal mutating func unregister(for ident: Int32) {
+    internal mutating func unregister(ident: Int32, of filter: SXKernel.Filter) {
         let kernel = map[ident]
-        kernel?.remove(ident: ident)
+        kernel?.remove(ident: ident, for: filter)
         map[ident] = nil
     }
     
@@ -127,12 +118,14 @@ public final class SXKernel {
     
     // active events count
     var actived = false
+    
     #if os(Linux)
     private typealias ev_raw_t = Int
     #else
     private typealias ev_raw_t = Int16
     #endif
-    enum EventType {
+    
+    enum Filter {
         case read
         case write
         case vnode
@@ -150,6 +143,14 @@ public final class SXKernel {
             case .vnode: return Int16(EVFILT_VNODE)
             }
             #endif
+        }
+        
+        fileprivate var internalVal: Int32 {
+            switch self {
+            case .read: return 1
+            case .write: return 2
+            case .vnode: return 3
+            }
         }
     }
     
@@ -187,7 +188,11 @@ extension SXKernel {
             self.actived = false
         }
     }
-    
+    /*
+    fileprivate func ident(type: EventType, id: Int32) -> Int32 {
+        return type.internalVal + id * 10
+    }
+    */
     private func kqueue_runloop() {
         
         if (self.withMutex { () -> Bool in
@@ -244,7 +249,7 @@ extension SXKernel {
         }
     }
     
-    func register(_ queue: KqueueManagable, for kind: EventType = .read) {
+    func register(_ queue: KqueueManagable, for kind: Filter = .read) {
         withMutex {
             self.queues[queue.ident] = queue
             self.queues[queue.ident]!.manager = self
@@ -269,34 +274,8 @@ extension SXKernel {
             activate()
         }
     }
-//    
-//    func register(queue: kernel_queue_wrap, for kind: EventType = .read) {
-//        withMutex {
-//            self.queues[queue.q.ident] = queue.q
-//            self.queues[queue.q.ident]!.manager = self
-//            
-//            #if os(Linux)
-//            var ev = epoll_event()
-//            ev.events = kind.value | EPOLLONESHOT;
-//            ev.data.fd = queue.q.ident
-//            epoll_ctl(kq, EPOLL_CTL_ADD, queue.q.ident, &ev)
-//            #else
-//            var k = event(ident: UInt(queue.q.ident),
-//                            filter: kind.value,
-//                            flags: UInt16(EV_ADD | EV_ENABLE | EV_ONESHOT),
-//                            fflags: 0, data: 0,
-//                            udata: nil)
-//            kevent(kq, &k, 1, nil, 0, nil)
-//            #endif
-//            count += 1
-//        }
-//        
-//        if !actived {
-//            activate()
-//        }
-//    }
     
-    func remove(ident: Int32) {
+    func remove(ident: Int32, for filter: Filter) {
         withMutex {
             self.queues[ident] = nil
             #if os(Linux)
@@ -306,7 +285,7 @@ extension SXKernel {
             epoll_ctl(kq, EPOLL_CTL_DEL, ident, &ev)
             #else
             var k = event(ident: UInt(ident),
-                            filter: Int16(EVFILT_READ),
+                            filter: filter.value,
                             flags: UInt16(EV_DELETE | EV_DISABLE | EV_RECEIPT),
                             fflags: 0,
                             data: 0,
