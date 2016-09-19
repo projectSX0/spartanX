@@ -114,6 +114,10 @@ public extension SXServerSocket {
         } catch {
             print(error)
         }
+        
+        self.manager?.thread.exec {
+            self.manager?.register(self)
+        }
     }
     
     public func done() {
