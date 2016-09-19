@@ -135,7 +135,7 @@ public final class SXKernel {
             switch self {
             case .read: return EPOLLIN.rawValue
             case .write: return EPOLLOUT.rawValue
-            case .vnode: return EPOLLOUT.rawValue | EPOLLIN.rawValue | EOILLET.rawValue
+            case .vnode: return EPOLLOUT.rawValue | EPOLLIN.rawValue | EPOLLET.rawValue
             }
             #else
             switch self {
