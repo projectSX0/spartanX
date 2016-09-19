@@ -215,11 +215,13 @@ extension SXKernel {
         #endif
         
         if nev < 0 {
-            continue
+            self.thread.exec {
+                kqueue_runloop()
+            }
         }
         
         if nev == 0 {
-            break
+            kqueue_end()
         }
         
         for i in 0..<Int(nev) {
