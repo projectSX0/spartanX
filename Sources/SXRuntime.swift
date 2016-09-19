@@ -43,11 +43,6 @@ public protocol KqueueManagable {
     func runloop(_ ev: event)
 }
 
-internal struct kernel_queue_wrap {
-    var q: KqueueManagable
-    init(_ q: KqueueManagable) { self.q = q }
-}
-
 #if os(Linux)
 public typealias event = epoll_event
 #else
@@ -65,16 +60,15 @@ public extension SXKernelManager {
     public static func initializeDefault() {
         `default` = SXKernelManager(maxCPU: 1, evs_cpu: 5120)
     }
-    
-    internal mutating func register(service: SXService, queue: SXQueue) {
-        let queue = kernel_queue_wrap(queue)
-        register(queue: queue)
-    }
-    
-    internal mutating func register(for managable: KqueueManagable) {
-        let queue = kernel_queue_wrap(managable)
-        register(queue: queue)
-    }
+//    
+//    internal mutating func register(service: SXService, queue: SXQueue) {
+//        let queue = kernel_queue_wrap(queue)
+//        register(queue: queue)
+//    }
+////    
+//    internal mutating func register(for managable: KqueueManagable) {
+//        
+//    }
     
     public mutating func manage<Managable: KqueueManagable>(_ managable: Managable, setup: ((inout Managable) -> ())?) {
         var target = managable
@@ -84,14 +78,14 @@ public extension SXKernelManager {
         }
         #endif
         setup?(&target)
-        self.register(for: target)
+        self.register(target)
     }
 
     @inline(__always)
-    internal mutating func register(queue: kernel_queue_wrap) {
+    internal mutating func register(_ queue: KqueueManagable) {
         let _leastBusyKernel = leastBusyKernel()
-        map[queue.q.ident] = _leastBusyKernel
-        _leastBusyKernel?.register(queue: queue)
+        map[queue.ident] = _leastBusyKernel
+        _leastBusyKernel?.register(queue)
     }
     
     internal mutating func unregister(for ident: Int32) {
@@ -275,32 +269,32 @@ extension SXKernel {
             activate()
         }
     }
-    
-    func register(queue: kernel_queue_wrap, for kind: EventType = .read) {
-        withMutex {
-            self.queues[queue.q.ident] = queue.q
-            self.queues[queue.q.ident]!.manager = self
-            
-            #if os(Linux)
-            var ev = epoll_event()
-            ev.events = kind.value | EPOLLONESHOT;
-            ev.data.fd = queue.q.ident
-            epoll_ctl(kq, EPOLL_CTL_ADD, queue.q.ident, &ev)
-            #else
-            var k = event(ident: UInt(queue.q.ident),
-                            filter: kind.value,
-                            flags: UInt16(EV_ADD | EV_ENABLE | EV_ONESHOT),
-                            fflags: 0, data: 0,
-                            udata: nil)
-            kevent(kq, &k, 1, nil, 0, nil)
-            #endif
-            count += 1
-        }
-        
-        if !actived {
-            activate()
-        }
-    }
+//    
+//    func register(queue: kernel_queue_wrap, for kind: EventType = .read) {
+//        withMutex {
+//            self.queues[queue.q.ident] = queue.q
+//            self.queues[queue.q.ident]!.manager = self
+//            
+//            #if os(Linux)
+//            var ev = epoll_event()
+//            ev.events = kind.value | EPOLLONESHOT;
+//            ev.data.fd = queue.q.ident
+//            epoll_ctl(kq, EPOLL_CTL_ADD, queue.q.ident, &ev)
+//            #else
+//            var k = event(ident: UInt(queue.q.ident),
+//                            filter: kind.value,
+//                            flags: UInt16(EV_ADD | EV_ENABLE | EV_ONESHOT),
+//                            fflags: 0, data: 0,
+//                            udata: nil)
+//            kevent(kq, &k, 1, nil, 0, nil)
+//            #endif
+//            count += 1
+//        }
+//        
+//        if !actived {
+//            activate()
+//        }
+//    }
     
     func remove(ident: Int32) {
         withMutex {

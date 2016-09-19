@@ -46,7 +46,7 @@ public class SXQueue: KqueueManagable {
         self.writeAgent = w
         self.service = service
         self.ident = fd
-        SXKernelManager.default?.register(service: service, queue: self)
+        SXKernelManager.default?.register(self)
     }
     
     public func terminate() {
