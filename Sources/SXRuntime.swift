@@ -232,9 +232,7 @@ extension SXKernel {
                 let queue = self.queues[Int32(event.ident)]
             #endif
             
-            self.thread.exec {
-                queue?.runloop(event)
-            }
+            queue?.runloop(event)
         }
         
         self.thread.exec {
