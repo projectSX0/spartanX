@@ -188,56 +188,106 @@ extension SXKernel {
 // Kevent
 extension SXKernel {
     
+    private func kqueue_end() {
+        self.withMutex {
+            self.actived = false
+        }
+    }
+    
+    private func kqueue_runloop() {
+        
+        if (self.withMutex { () -> Bool in
+            
+            if self.count == 0 {
+                return true
+            }
+            return false
+        }) {
+            kqueue_end()
+            return
+        }
+        
+        
+        #if os(Linux)
+            let nev = epoll_wait(self.kq, &self.events, Int32(self.events.count), -1)
+        #else
+            let nev = kevent(self.kq, nil, 0, &self.events, Int32(self.events.count), nil)
+        #endif
+        
+        if nev < 0 {
+            continue
+        }
+        
+        if nev == 0 {
+            break
+        }
+        
+        for i in 0..<Int(nev) {
+            let event = self.events[i]
+            #if os(Linux)
+                let queue = self.queues[Int32(event.data.fd)]
+            #else
+                let queue = self.queues[Int32(event.ident)]
+            #endif
+            queue?.runloop(event)
+        }
+        
+        self.thread.exec {
+            kqueue_runloop()
+        }
+    }
+    
     func activate() {
         self.withMutex{
             actived = true
         }
         
         self.thread.execute {
+            kqueue_runloop()
+//            kqueue_loop: while true {
+//                
             
-            kqueue_loop: while true {
-                
-                if (self.withMutex { () -> Bool in
-
-                    if self.count == 0 {
-                        return true
-                    }
-                    return false
-                    }) {
-                    
-                    break kqueue_loop
-                }
-                
-                
-                #if os(Linux)
-                let nev = epoll_wait(self.kq, &self.events, Int32(self.events.count), -1)
-                #else
-                let nev = kevent(self.kq, nil, 0, &self.events, Int32(self.events.count), nil)
-                #endif
-                
-                if nev < 0 {
-                    continue
-                }
-                
-                if nev == 0 {
-                    break
-                }
-
-                for i in 0..<Int(nev) {
-                    let event = self.events[i]
-                    #if os(Linux)
-                    let queue = self.queues[Int32(event.data.fd)]
-                    #else
-                    let queue = self.queues[Int32(event.ident)]
-                    #endif
-                    queue?.runloop(event)
-                }
-
-            }
-            
-            self.withMutex {
-                self.actived = false
-            }
+//                if (self.withMutex { () -> Bool in
+//
+//                    if self.count == 0 {
+//                        return true
+//                    }
+//                    return false
+//                    }) {
+//                    
+//                    break kqueue_loop
+//                }
+//                
+//                
+//                #if os(Linux)
+//                let nev = epoll_wait(self.kq, &self.events, Int32(self.events.count), -1)
+//                #else
+//                let nev = kevent(self.kq, nil, 0, &self.events, Int32(self.events.count), nil)
+//                #endif
+//                
+//                if nev < 0 {
+//                    continue
+//                }
+//                
+//                if nev == 0 {
+//                    break
+//                }
+//
+//                for i in 0..<Int(nev) {
+//                    let event = self.events[i]
+//                    #if os(Linux)
+//                    let queue = self.queues[Int32(event.data.fd)]
+//                    #else
+//                    let queue = self.queues[Int32(event.ident)]
+//                    #endif
+//                    queue?.runloop(event)
+//                }
+//
+//            }
+//
+//            self.withMutex {
+//                self.actived = false
+//            }
         }
     }
     

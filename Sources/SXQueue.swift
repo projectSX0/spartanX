@@ -95,7 +95,9 @@ public class SXQueue: KqueueManagable {
         }
         
 //        print("re-register")
-//        self.manager?.register(self)
+        self.manager?.thread.exec {
+            self.manager?.register(self)
+        }
     }
 //    #endif
 }
