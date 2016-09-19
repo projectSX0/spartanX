@@ -35,10 +35,10 @@ public class SXQueue: KqueueManagable {
     public var ident: Int32
     public var readAgent: Readable
     public var writeAgent: Writable
-    
     public var service: SXService
-    
     public var manager: SXKernel?
+    
+    public var userInfo = [String: Any]()
     
     public init(fd: Int32, readFrom r: Readable, writeTo w: Writable, with service: SXService) throws {
         
@@ -55,25 +55,6 @@ public class SXQueue: KqueueManagable {
         SXKernelManager.default?.unregister(ident: ident, of: .read)
     }
    
-//    #if os(Linux)
-//    public func runloop() {
-//        do {
-//            if let data = try self.fd_r.read() {
-//            
-//                if !self.service.dataHandler(self, data) {
-//                    return terminate()
-//                }
-//                
-//            } else {
-//                return terminate()
-//            }
-//            
-//        } catch {
-//            self.service.errHandler?(self, error)
-//        }
-//    }
-//    #else
-//    public func runloop(kdata: Int, udata: UnsafeRawPointer!) {
     public func runloop(_ ev: event) {
         
         do {
@@ -94,10 +75,8 @@ public class SXQueue: KqueueManagable {
             self.service.errHandler?(self, error)
         }
         
-//        print("re-register")
         self.manager?.thread.exec {
             self.manager?.register(self)
         }
     }
-//    #endif
 }
