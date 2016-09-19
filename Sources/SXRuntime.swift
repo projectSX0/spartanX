@@ -120,7 +120,7 @@ public final class SXKernel {
     var actived = false
     
     #if os(Linux)
-    private typealias ev_raw_t = UInt
+    private typealias ev_raw_t = UInt32
     #else
     private typealias ev_raw_t = Int16
     #endif
