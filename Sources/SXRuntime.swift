@@ -133,9 +133,9 @@ public final class SXKernel {
         fileprivate var value: ev_raw_t {
             #if os(Linux)
             switch self {
-            case read: return EPOLLIN.rawValue
-            case write: return EPOLLOUT.rawValue
-            case vnote: return EPOLLOUT.rawValue | EPOLLIN.rawValue | EOILLET.rawValue
+            case .read: return EPOLLIN.rawValue
+            case .write: return EPOLLOUT.rawValue
+            case .vnote: return EPOLLOUT.rawValue | EPOLLIN.rawValue | EOILLET.rawValue
             }
             #else
             switch self {
