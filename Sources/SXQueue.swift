@@ -75,8 +75,10 @@ public class SXQueue: KqueueManagable {
             self.service.errHandler?(self, error)
         }
         
+        #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(FreeBSD) || os(PS4)
         self.manager?.thread.exec {
             self.manager?.register(self)
         }
+        #endif
     }
 }

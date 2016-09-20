@@ -115,9 +115,11 @@ public extension SXServerSocket {
             print(error)
         }
         
+        #if os(FreeBSD) || os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(PS4)
         self.manager?.thread.exec {
             self.manager?.register(self)
         }
+        #endif
     }
     
     public func done() {

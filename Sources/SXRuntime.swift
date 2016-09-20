@@ -59,6 +59,8 @@ public extension SXKernelManager {
     
     public static func initializeDefault() {
         `default` = SXKernelManager(maxCPU: 1, evs_cpu: 5120)
+//        let dispatch = DispatchQueue(label: UUID().uuidString)
+//        dispatch.s
     }
     
     public mutating func manage<Managable: KqueueManagable>(_ managable: Managable, setup: ((inout Managable) -> ())?) {
@@ -257,9 +259,9 @@ extension SXKernel {
             
             #if os(Linux)
                 var ev = epoll_event()
-                ev.events = kind.value | EPOLLONESHOT.rawValue | EPOLLET.rawValue;
+                ev.events = kind.value;
                 ev.data.fd = queue.ident
-                epoll_ctl(kq, EPOLL_CTL_ADD | EPOLL_CTL_MOD, queue.ident, &ev)
+                epoll_ctl(kq, EPOLL_CTL_ADD, queue.ident, &ev)
             #else
                 var k = event(ident: UInt(queue.ident),
                               filter: kind.value,
