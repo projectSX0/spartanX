@@ -259,7 +259,7 @@ extension SXKernel {
                 var ev = epoll_event()
                 ev.events = kind.value | EPOLLONESHOT.rawValue | EPOLLET.rawValue;
                 ev.data.fd = queue.ident
-                epoll_ctl(kq, EPOLL_CTL_ADD, queue.ident, &ev)
+                epoll_ctl(kq, EPOLL_CTL_ADD | EPOLL_CTL_MOD, queue.ident, &ev)
             #else
                 var k = event(ident: UInt(queue.ident),
                               filter: kind.value,
