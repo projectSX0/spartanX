@@ -233,8 +233,9 @@ extension SXKernel {
             #else
                 let queue = self.queues[Int32(event.ident)]
             #endif
-            
-            queue?.runloop(event)
+            SXThreadPool.default.async {
+                queue?.runloop(event)
+            }
         }
         
         self.thread.exec {

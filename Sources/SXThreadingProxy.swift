@@ -41,9 +41,10 @@ public protocol SXThreadingProxy {
 
 extension SXThreadPool : SXThreadingProxy {
     public func execute(block: @escaping () -> Void) {
-        self.exec(block: block)
+//        self.exec(block: block)
+        self.async(block: block)
     }
-    public static var `default` = SXThreadPool()
+    public static var `default` = SXThreadPool(max: 4)
 }
 
 extension SXThread : SXThreadingProxy {
