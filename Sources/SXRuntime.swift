@@ -216,6 +216,7 @@ extension SXKernel {
             let nev = kevent(self.kq, nil, 0, &self.events, Int32(self.events.count), nil)
         #endif
         
+        print("\(nev)")
         if nev < 0 {
             self.thread.exec {
                 self.kqueue_runloop()
