@@ -31,7 +31,8 @@
 //
 
 import Foundation
-import CKit
+import func CKit.pointer
+import func CKit.mutablePointer
 
 #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
 public let UNIX_PATH_MAX = 104

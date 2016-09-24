@@ -32,7 +32,6 @@
 
 import Foundation
 import FoundationPlus
-import swiftTLS
 
 open class SXServerSocket : ServerSocket, KqueueManagable {
     

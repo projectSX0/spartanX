@@ -30,8 +30,13 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-import Foundation
-import swiftTLS
+import struct Foundation.Data
+
+#if os(Linux) || os(FreeBSD)
+    import Glibc
+#else
+    import Darwin
+#endif
 
 public struct ClientFunctions<ClientSocketType> {
     var read: (ClientSocketType) throws -> Data?

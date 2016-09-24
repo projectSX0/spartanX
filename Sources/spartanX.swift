@@ -25,11 +25,15 @@
 //  The views and conclusions contained in the software and documentation are those
 //  of the authors and should not be interpreted as representing official policies,
 //  either expressed or implied, of the FreeBSD Project.
+//
+//  Created by Yuji on 9/24/16.
+//  Copyright © 2016 yuuji. All rights reserved.
+//
 
-#if os(Linux) || os(FreeBSD)
-    import Glibc
+#if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+    import typealias Darwin.in_port_t
 #else
-    import Darwin
+    import typealias Glibc.in_port_t
 #endif
 
 public struct SXSocketConfiguation {

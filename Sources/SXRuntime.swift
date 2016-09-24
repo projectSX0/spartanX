@@ -28,14 +28,23 @@
 //
 //  Created by Yuji on 6/3/16.
 //  Copyright © 2016 yuuji. All rights reserved.
-//e2fsprogs-libuuid
+//
 
-import Foundation
-import CKit
+import struct Foundation.Data
+import func CKit.pointer
 
 #if os(Linux)
 import spartanXLinux // epoll
 #endif
+
+#if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+import Darwin
+#else
+import Glibc
+#endif
+
+import struct Foundation.Data
+import func CKit.pointer
 
 public protocol KqueueManagable {
     var ident: Int32 { get }
@@ -46,7 +55,7 @@ public protocol KqueueManagable {
 #if os(Linux)
 public typealias event = epoll_event
 #else
-public typealias event = Foundation.kevent
+public typealias event = Darwin.kevent
 #endif
 
 public struct SXKernelManager {
@@ -209,9 +218,9 @@ extension SXKernel {
         
         
         #if os(Linux)
-            let nev = epoll_wait(self.kq, &self.events, Int32(self.events.count), -1)
+        let nev = epoll_wait(self.kq, &self.events, Int32(self.events.count), -1)
         #else
-            let nev = kevent(self.kq, nil, 0, &self.events, Int32(self.events.count), nil)
+        let nev = kevent(self.kq, nil, 0, &self.events, Int32(self.events.count), nil)
         #endif
         
         if nev < 0 {
@@ -227,9 +236,9 @@ extension SXKernel {
         for i in 0..<Int(nev) {
             let event = self.events[i]
             #if os(Linux)
-                let queue = self.queues[Int32(event.data.fd)]
+            let queue = self.queues[Int32(event.data.fd)]
             #else
-                let queue = self.queues[Int32(event.ident)]
+            let queue = self.queues[Int32(event.ident)]
             #endif
             queue?.runloop(event)
         }
@@ -254,17 +263,17 @@ extension SXKernel {
             self.queues[queue.ident] = queue
             self.queues[queue.ident]!.manager = self
             #if os(Linux)
-                var ev = epoll_event()
-                ev.events = kind.value;
-                ev.data.fd = queue.ident
-                epoll_ctl(kq, EPOLL_CTL_ADD, queue.ident, &ev)
+            var ev = epoll_event()
+            ev.events = kind.value;
+            ev.data.fd = queue.ident
+            epoll_ctl(kq, EPOLL_CTL_ADD, queue.ident, &ev)
             #else
-                var k = event(ident: UInt(queue.ident),
-                              filter: kind.value,
-                              flags: UInt16(EV_ADD | EV_ENABLE | EV_ONESHOT),
-                              fflags: 0, data: 0,
-                              udata: nil)
-                kevent(kq, &k, 1, nil, 0, nil)
+            var k = event(ident: UInt(queue.ident),
+                          filter: kind.value,
+                          flags: UInt16(EV_ADD | EV_ENABLE | EV_ONESHOT),
+                          fflags: 0, data: 0,
+                          udata: nil)
+            kevent(kq, &k, 1, nil, 0, nil)
             #endif
             count += 1
         }

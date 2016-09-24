@@ -31,7 +31,7 @@
 //
 
 
-import Foundation
+import struct Foundation.Data
 
 public protocol SXService {
     var dataHandler: (SXQueue, Data) -> Bool { get set }

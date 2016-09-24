@@ -26,60 +26,39 @@
 //  of the authors and should not be interpreted as representing official policies,
 //  either expressed or implied, of the FreeBSD Project.
 //
-//  Created by Yuji on 6/4/16.
+//  Created by Yuji on 9/24/16.
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-import Foundation
-import CKit
+import struct Foundation.Data
 
-public protocol UNIXFileDescriptor {
-    var fileDescriptor: Int32 { get }
-}
+#if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+import Darwin
+#else
+import Glibc
+#endif
 
-public protocol SocketType : UNIXFileDescriptor {
+public protocol Socket : UNIXFileDescriptor {
     var sockfd: Int32 { get }
     var domain: SocketDomains { get set }
     var type: SocketTypes { get set }
     var `protocol`: Int32 { get set }
 }
 
-public protocol ServerSocket : SocketType, Addressable {
+public protocol ServerSocket : Socket, Addressable {
     func accept() throws -> ClientSocket
 }
 
-public protocol ClientSocket : SocketType, Readable, Writable {
+public protocol ClientSocket : Socket, Readable, Writable {
     /* storing address */
     var address: SXSocketAddress? { get set }
 }
 
-public protocol ConnectionSocket : SocketType, Addressable, Readable, Writable {
+public protocol ConnectionSocket : Socket, Addressable, Readable, Writable {
     
 }
 
-public protocol Readable {
-    var readBufsize: size_t { get set }
-    func read() throws -> Data?
-    func done()
-}
-
-public protocol Writable {
-    func write(data: Data) throws
-    func done()
-}
-
-public protocol Addressable {
-    var address: SXSocketAddress? { get set }
-    var port: in_port_t? { get set }
-}
-
-extension KqueueManagable where Self : SocketType {
-    public var ident: Int32 {
-        return sockfd
-    }
-}
-
-extension SocketType {
+extension Socket {
     
     public var fileDescriptor: Int32 {
         return self.sockfd
@@ -95,7 +74,7 @@ extension SocketType {
     }
 }
 
-extension SocketType where Self : Readable {
+extension Readable where Self : Socket {
     func recv_block(r_flags: Int32 = 0) throws -> Data? {
         let size = self.readBufsize
         
@@ -146,85 +125,8 @@ extension SocketType where Self : Readable {
     }
 }
 
-extension UNIXFileDescriptor where Self : Readable {
-    func read_block() throws -> Data? {
-        let size = self.readBufsize
-        
-        var buffer = [UInt8](repeating: 0, count: size)
-        var len = 0
-        
-        len = Foundation.read(self.fileDescriptor, &buffer, size)
-        
-        if len == 0 {
-            return nil
-        }
-        
-        if len == -1 {
-            throw SocketError.recv(String.errno)
-        }
-        
-        return Data(bytes: buffer, count: len)
-    }
-    
-    func read_nonblock() throws -> Data? {
-        let size = self.readBufsize
-        
-        var buffer = [UInt8](repeating: 0, count: size)
-        var len = 0
-        var _len = 0
-        recv_loop: while true {
-            var smallbuffer = [UInt8](repeating: 0, count: size)
-            len = Foundation.read(self.fileDescriptor, &smallbuffer, size)
-            
-            if len < 0 {
-                
-                switch errno {
-                case EAGAIN, EWOULDBLOCK:
-                    break recv_loop
-                default:
-                    throw SocketError.recv(String.errno)
-                }
-                
-            } else if len > 0 {
-                buffer.append(contentsOf: smallbuffer)
-                _len += len
-            } else {
-                return nil
-            }
-        }
-        
-        return Data(bytes: buffer, count: len)
+extension KqueueManagable where Self : Socket {
+    public var ident: Int32 {
+        return sockfd
     }
 }
-
-public extension Addressable where Self : SocketType {
-    public func bind() throws {
-        var err: Int32 = 0
-        
-        var yes = true
-        
-        if setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, UInt32(MemoryLayout<Int32>.size)) == -1 {
-            throw SocketError.setsockopt(String.errno)
-        }
-        
-        guard let address = address else {
-            throw SocketError.bind("address is nil")
-        }
-        
-        switch address {
-        case var .inet(addr):
-            err = Foundation.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_in>.size))
-            
-        case var .inet6(addr):
-            err = Foundation.bind(sockfd, pointer(of: &addr).cast(to : sockaddr.self), socklen_t(MemoryLayout<sockaddr_in6>.size))
-            
-        case var .unix(addr):
-            err = Foundation.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_un>.size))
-        }
-        
-        if err == -1 {
-            throw SocketError.bind(String.errno)
-        }
-    }
-}
-

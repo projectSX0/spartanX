@@ -30,8 +30,6 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-import Foundation
-
 public enum SocketError: Error {
     case socket(String)
     case setsockopt(String)

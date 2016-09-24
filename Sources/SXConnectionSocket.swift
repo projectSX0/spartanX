@@ -1,15 +1,51 @@
+
+//  Copyright (c) 2016, Yuji
+//  All rights reserved.
 //
-//  SXConnectionSocket.swift
-//  spartanX
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions are met:
 //
-//  Created by yuuji on 9/11/16.
+//  1. Redistributions of source code must retain the above copyright notice, this
+//  list of conditions and the following disclaimer.
+//  2. Redistributions in binary form must reproduce the above copyright notice,
+//  this list of conditions and the following disclaimer in the documentation
+//  and/or other materials provided with the distribution.
 //
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+//  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+//  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+//  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+//  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+//  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+//  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+//  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+//  The views and conclusions contained in the software and documentation are those
+//  of the authors and should not be interpreted as representing official policies,
+//  either expressed or implied, of the FreeBSD Project.
+//
+//  Created by Yuji on 9/11/16.
+//  Copyright © 2016 yuuji. All rights reserved.
 //
 
-import Foundation
-import CKit
-import swiftTLS
+#if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+import Darwin
+#else
+import Glibc
+#endif
 
+import struct Foundation.Data
+import func CKit.pointer
+
+private func connect(_ fd: Int32, _ sockaddr: UnsafePointer<sockaddr>, _ socklen_t: socklen_t) -> Int32 {
+    #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+    return Darwin.connect(fd, sockaddr, socklen_t)
+    #else
+    return Glibc.connect(fd, sockaddr, socklen_t)
+    #endif
+}
 public struct SXConnectionSocket: ConnectionSocket
 {
     static let defaultBufsize = 4096
@@ -18,7 +54,6 @@ public struct SXConnectionSocket: ConnectionSocket
     public var type: SocketTypes
     public var `protocol`: Int32
     public var port: in_port_t?
-    var tlsContext: TLSClient?
     
     public var address: SXSocketAddress?
     public var readBufsize: size_t
@@ -34,12 +69,8 @@ extension SXConnectionSocket: KqueueManagable {
     
     @inline(__always)
     public func write(data: Data) throws {
-        if let tlsc = tlsContext {
-            _ = try tlsc.write(data: data)
-        } else {
-            if send(sockfd, data.bytes, data.length, 0) == -1 {
-                throw SocketError.send("send: \(String.errno)")
-            }
+        if send(sockfd, data.bytes, data.length, 0) == -1 {
+            throw SocketError.send("send: \(String.errno)")
         }
     }
     
@@ -106,7 +137,7 @@ public extension SXConnectionSocket {
         self.address = SXSocketAddress(address: unixDomainName, withDomain: .unix, port: 0)
         switch self.address! {
         case var .unix(addr):
-            if Foundation.connect(sockfd, pointer(of: &addr).cast(to: sockaddr.self), address!.socklen) == -1 {
+            if connect(sockfd, pointer(of: &addr).cast(to: sockaddr.self), address!.socklen) == -1 {
                 throw SocketError.connect(String.errno)
             }
         default:
@@ -126,14 +157,14 @@ public extension SXConnectionSocket {
             switch address {
             case var .inet(addr):
                 fd = socket(AF_INET, type.rawValue, 0)
-                if Foundation.connect(fd, pointer(of: &addr).cast(to: sockaddr.self), address.socklen) == -1 {
+                if connect(fd, pointer(of: &addr).cast(to: sockaddr.self), address.socklen) == -1 {
                     continue
                 }
                 self.domain = .inet
                 break searchAddress
             case var .inet6(addr):
                 fd = socket(AF_INET6, type.rawValue, 0)
-                if Foundation.connect(fd, pointer(of: &addr).cast(to: sockaddr.self), address.socklen) == -1 {
+                if connect(fd, pointer(of: &addr).cast(to: sockaddr.self), address.socklen) == -1 {
                     continue
                 }
                 self.domain = .inet6
@@ -163,7 +194,7 @@ public extension SXConnectionSocket {
             switch address {
             case var .inet(addr):
                 fd = socket(AF_INET, type.rawValue, 0)
-                if Foundation.connect(fd, pointer(of: &addr).cast(to: sockaddr.self), address.socklen) == -1 {
+                if connect(fd, pointer(of: &addr).cast(to: sockaddr.self), address.socklen) == -1 {
                     continue
                 }
                 self.domain = .inet
@@ -171,7 +202,7 @@ public extension SXConnectionSocket {
             case var .inet6(addr):
                 fd = socket(AF_INET6, type.rawValue, 0)
                 
-                if Foundation.connect(fd, pointer(of: &addr).cast(to: sockaddr.self), address.socklen) == -1 {
+                if connect(fd, pointer(of: &addr).cast(to: sockaddr.self), address.socklen) == -1 {
                     continue
                 }
                 self.domain = .inet6
@@ -197,7 +228,7 @@ public extension SXConnectionSocket {
         self.readBufsize = bufsize
         switch self.address! {
         case var .inet(addr):
-            if Foundation.connect(self.sockfd, pointer(of: &addr).cast(to: sockaddr.self), self.address!.socklen) == -1 {
+            if connect(self.sockfd, pointer(of: &addr).cast(to: sockaddr.self), self.address!.socklen) == -1 {
                 throw SocketError.connect(String.errno)
             }
         default: throw DNS.Error.unknownDomain
@@ -213,7 +244,7 @@ public extension SXConnectionSocket {
         self.readBufsize = bufsize
         switch self.address! {
         case var .inet6(addr):
-            if Foundation.connect(self.sockfd, pointer(of: &addr).cast(to: sockaddr.self), self.address!.socklen) == -1 {
+            if connect(self.sockfd, pointer(of: &addr).cast(to: sockaddr.self), self.address!.socklen) == -1 {
                 throw SocketError.connect(String.errno)
             }
             default: throw DNS.Error.unknownDomain
@@ -230,7 +261,7 @@ public extension SXConnectionSocket {
         self.readBufsize = bufsize
         switch self.address! {
         case var .inet(addr):
-            if Foundation.connect(self.sockfd, pointer(of: &addr).cast(to: sockaddr.self), self.address!.socklen) == -1 {
+            if connect(self.sockfd, pointer(of: &addr).cast(to: sockaddr.self), self.address!.socklen) == -1 {
                 throw SocketError.connect(String.errno)
             }
         default: throw DNS.Error.unknownDomain
@@ -247,7 +278,7 @@ public extension SXConnectionSocket {
         self.readBufsize = bufsize
         switch self.address! {
         case var .inet6(addr):
-            if Foundation.connect(self.sockfd, pointer(of: &addr).cast(to: sockaddr.self), self.address!.socklen) == -1 {
+            if connect(self.sockfd, pointer(of: &addr).cast(to: sockaddr.self), self.address!.socklen) == -1 {
                 throw SocketError.connect(String.errno)
             }
         default: throw DNS.Error.unknownDomain
