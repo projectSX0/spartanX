@@ -118,7 +118,7 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
     }
     
     public static func unix(service: SXService, domain: String, type: SocketTypes, backlog: Int = 50) throws -> SXServerSocket {
-        let conf = SXSocketConfiguation(domain: .unix, type: type, port: 0, backlog: backlog, using: 0)
+        let conf = SXSocketConfiguation(unixDomain: domain, type: type, backlog: backlog, using: 0)
         let fns = SXClientSocket.standardIOHandlers
         return try SXServerSocket(service: service, type: type, conf: conf) {
             (server: SXServerSocket) throws -> SXClientSocket in

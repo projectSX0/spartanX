@@ -58,7 +58,7 @@ public struct SXSocketConfiguation {
         self.`protocol` = `protocol`
     }
     
-    private init(unixDomain: String, type: SocketTypes, backlog: Int = 50, using `protocol`: Int32 = 0) {
+    internal init(unixDomain: String, type: SocketTypes, backlog: Int = 50, using `protocol`: Int32 = 0) {
         self.address = SXSocketAddress(address: unixDomain, withDomain: .unix, port: 0)!
         self.port = 0
         self.backlog = backlog
