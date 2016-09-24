@@ -39,26 +39,6 @@ public struct ClientFunctions<ClientSocketType> {
     var clean: ((ClientSocketType) -> ())?
 }
 
-public protocol ClientIOConf {
-    
-}
-
-public struct SXClientIOConf: ClientIOConf {
-    var flags_r: Int32
-    var flags_w: Int32
-    var readBufsize: size_t
-    
-    public static var `default` = SXClientIOConf(read: (bufsize: 10240, flags: 0),
-                                                 writeFlags: 0)
-    
-    public init(read: (bufsize: size_t, flags: Int32),
-                writeFlags: Int32) {
-        self.readBufsize = read.bufsize
-        self.flags_r = read.flags
-        self.flags_w = writeFlags
-    }
-}
-
 public struct SXClientSocket : ClientSocket {
     
     internal var _read: (SXClientSocket) throws -> Data?
@@ -71,19 +51,15 @@ public struct SXClientSocket : ClientSocket {
     public var `protocol`: Int32
     
     public var address: SXSocketAddress?
-    
-    public var tlsContext: TLSClient?
-    
-    public var readBufsize: size_t
-    public var readFlags: Int32
-    public var writeFlags: Int32
+    public var readBufsize: size_t = 4096
+    public var recvFlags: Int32 = 0
+    public var sendFlags: Int32 = 0
     
     internal init(fd: Int32,
-                  tls: TLSClient?,
                   addrinfo: (addr: sockaddr, len: socklen_t),
                   sockinfo: (type: SocketTypes, `protocol`: Int32),
-                  rwconfig: SXClientIOConf,
                   functions: ClientFunctions<SXClientSocket>) throws {
+        
         self.address = try SXSocketAddress(addrinfo.addr, socklen: addrinfo.len)
         self.sockfd = fd
         
@@ -98,20 +74,26 @@ public struct SXClientSocket : ClientSocket {
             throw SocketError.socket("Unknown domain")
         }
         
-        self.tlsContext = tls
-        
         self.type = sockinfo.type
         self.`protocol` = sockinfo.`protocol`
-        self.readBufsize = rwconfig.readBufsize
-        self.readFlags = rwconfig.flags_r
-        self.writeFlags = rwconfig.flags_w
-        
         self._read = functions.read
         self._write = functions.write
     }
 }
 
 public extension SXClientSocket {
+    
+    public static let standardIOHandlers: ClientFunctions = ClientFunctions(read: { (client: SXClientSocket) throws -> Data? in
+        return client.isBlocking ?
+            try client.read_block() :
+            try client.read_nonblock()
+        }, write: { (client: SXClientSocket, data: Data) throws -> () in
+            if send(client.sockfd, data.bytes, data.length, 0) == -1 {
+                throw SocketError.send("send: \(String.errno)")
+            }
+    }) { (_ client: SXClientSocket) in}
+    
+    
     public func write(data: Data) throws {
         try self._write(self, data)
     }

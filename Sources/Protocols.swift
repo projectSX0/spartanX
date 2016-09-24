@@ -33,15 +33,18 @@
 import Foundation
 import CKit
 
-public protocol SocketType {
-    var sockfd: Int32 { get set }
+public protocol UNIXFileDescriptor {
+    var fileDescriptor: Int32 { get }
+}
+
+public protocol SocketType : UNIXFileDescriptor {
+    var sockfd: Int32 { get }
     var domain: SocketDomains { get set }
     var type: SocketTypes { get set }
     var `protocol`: Int32 { get set }
 }
 
 public protocol ServerSocket : SocketType, Addressable {
-    var clientConf: ClientIOConf { get set }
     func accept() throws -> ClientSocket
 }
 
@@ -77,6 +80,11 @@ extension KqueueManagable where Self : SocketType {
 }
 
 extension SocketType {
+    
+    public var fileDescriptor: Int32 {
+        return self.sockfd
+    }
+    
     internal func setBlockingMode(block: Bool) {
         let sockflags = fcntl(self.sockfd, F_GETFL, 0)
         _ = fcntl(self.sockfd, F_SETFL, block ? sockflags ^ O_NONBLOCK : sockflags | O_NONBLOCK)
@@ -84,6 +92,108 @@ extension SocketType {
     
     public var isBlocking: Bool {
         return ((fcntl(self.sockfd, F_GETFL, 0) & O_NONBLOCK) == 0)
+    }
+}
+
+extension SocketType where Self : Readable {
+    func recv_block(r_flags: Int32 = 0) throws -> Data? {
+        let size = self.readBufsize
+        
+        var buffer = [UInt8](repeating: 0, count: size)
+        var len = 0
+        
+        len = recv(self.sockfd, &buffer, size, r_flags)
+        
+        if len == 0 {
+            return nil
+        }
+        
+        if len == -1 {
+            throw SocketError.recv(String.errno)
+        }
+        
+        return Data(bytes: buffer, count: len)
+    }
+    
+    func recv_nonblock(r_flags: Int32 = 0) throws -> Data? {
+        let size = self.readBufsize
+        
+        var buffer = [UInt8](repeating: 0, count: size)
+        var len = 0
+        var _len = 0
+        recv_loop: while true {
+            var smallbuffer = [UInt8](repeating: 0, count: size)
+            len = recv(sockfd, &smallbuffer, size, r_flags)
+            
+            if len < 0 {
+                
+                switch errno {
+                case EAGAIN, EWOULDBLOCK:
+                    break recv_loop
+                default:
+                    throw SocketError.recv(String.errno)
+                }
+                
+            } else if len > 0 {
+                buffer.append(contentsOf: smallbuffer)
+                _len += len
+            } else {
+                return nil
+            }
+        }
+        
+        return Data(bytes: buffer, count: len)
+    }
+}
+
+extension UNIXFileDescriptor where Self : Readable {
+    func read_block() throws -> Data? {
+        let size = self.readBufsize
+        
+        var buffer = [UInt8](repeating: 0, count: size)
+        var len = 0
+        
+        len = Foundation.read(self.fileDescriptor, &buffer, size)
+        
+        if len == 0 {
+            return nil
+        }
+        
+        if len == -1 {
+            throw SocketError.recv(String.errno)
+        }
+        
+        return Data(bytes: buffer, count: len)
+    }
+    
+    func read_nonblock() throws -> Data? {
+        let size = self.readBufsize
+        
+        var buffer = [UInt8](repeating: 0, count: size)
+        var len = 0
+        var _len = 0
+        recv_loop: while true {
+            var smallbuffer = [UInt8](repeating: 0, count: size)
+            len = Foundation.read(self.fileDescriptor, &smallbuffer, size)
+            
+            if len < 0 {
+                
+                switch errno {
+                case EAGAIN, EWOULDBLOCK:
+                    break recv_loop
+                default:
+                    throw SocketError.recv(String.errno)
+                }
+                
+            } else if len > 0 {
+                buffer.append(contentsOf: smallbuffer)
+                _len += len
+            } else {
+                return nil
+            }
+        }
+        
+        return Data(bytes: buffer, count: len)
     }
 }
 

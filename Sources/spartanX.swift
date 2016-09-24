@@ -44,6 +44,8 @@ public struct SXSocketConfiguation {
     public var `protocol`: Int32
     public var backlog : Int
     
+    
+    /* legacy */
     public init(domain: SocketDomains = .unspec,
                 type: SocketTypes = .stream,
                 port: in_port_t,
@@ -53,6 +55,14 @@ public struct SXSocketConfiguation {
         self.type = type
         self.port = port
         self.backlog = backlog
+        self.`protocol` = `protocol`
+    }
+    
+    private init(unixDomain: String, type: SocketTypes, backlog: Int = 50, using `protocol`: Int32 = 0) {
+        self.address = SXSocketAddress(address: unixDomain, withDomain: .unix, port: 0)!
+        self.port = 0
+        self.backlog = backlog
+        self.type = type
         self.`protocol` = `protocol`
     }
 }

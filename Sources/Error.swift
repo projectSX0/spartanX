@@ -47,3 +47,7 @@ public enum SocketError: Error {
 public enum RuntimeError: Error {
     case duplicatedIdentifier
 }
+public enum FileDescriptorError: Error {
+    case read(String)
+    case write(String)
+}

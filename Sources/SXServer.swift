@@ -31,21 +31,148 @@
 //
 
 import Foundation
+import FoundationPlus
+import swiftTLS
 
-public protocol SXService {
-    var dataHandler: (SXQueue, Data) -> Bool { get set }
-    var errHandler: ((SXQueue, Error) -> ())? { get set }
-    var willTerminateHandler: ((SXQueue) -> ())? { get set }
-    var didTerminateHandler: ((SXQueue) -> ())? { get set }
+open class SXServerSocket : ServerSocket, KqueueManagable {
+    
+    public var address: SXSocketAddress?
+    public var port: in_port_t?
+    
+    public var manager: SXKernel?
+    
+    public var sockfd: Int32
+    public var domain: SocketDomains
+    public var type: SocketTypes
+    public var `protocol`: Int32
+    
+    open var backlog: Int
+    open var service: SXService
+    
+    internal var _accept: (_ from: SXServerSocket) throws -> ClientSocket
+    
+    public init(service: SXService,
+                type: SocketTypes,
+                conf: SXSocketConfiguation,
+                accept: @escaping (_ from: SXServerSocket) throws -> ClientSocket) throws {
+        
+        self.service = service
+        self.type = type
+        self.address = conf.address
+        self.`protocol` = conf.`protocol`
+        self.domain = conf.domain
+        self.backlog = conf.backlog
+        self._accept = accept
+        
+        self.sockfd = socket(Int32(domain.rawValue), type.rawValue, `protocol`)
+        
+        if sockfd == -1 {
+            throw SocketError.socket(String.errno)
+        }
+        
+        if self.type == .stream {
+            try self.bind()
+        }
+
+        try self.listen()
+    }
+    
+    public static func tcpIpv4(service: SXStreamSocketService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
+        
+        let conf = SXSocketConfiguation(domain: .inet, type: .stream, port: port, backlog: backlog, using: 0)
+        let fns = SXClientSocket.standardIOHandlers
+        return try SXServerSocket(service: service, type: .stream, conf: conf) {
+                        (server: SXServerSocket) throws -> SXClientSocket in
+        
+                        var addr = sockaddr()
+                        var socklen = socklen_t()
+                        let fd = Foundation.accept(server.sockfd, &addr, &socklen)
+                        getpeername(fd, &addr, &socklen)
+                        let client = try! SXClientSocket(fd: fd,
+                                                         addrinfo: (addr: addr, len: socklen),
+                                                         sockinfo: (type: conf.type, protocol: conf.`protocol`),
+                                                         functions: fns)
+                        service.acceptedHandler?(client)
+                        return client
+                    }
+    }
+    
+    public static func tcpIpv6(service: SXStreamSocketService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
+        
+        let conf = SXSocketConfiguation(domain: .inet6, type: .stream, port: port, backlog: backlog, using: 0)
+        let fns = SXClientSocket.standardIOHandlers
+        return try SXServerSocket(service: service, type: .stream, conf: conf) {
+            (server: SXServerSocket) throws -> SXClientSocket in
+            
+            var addr = sockaddr()
+            var socklen = socklen_t()
+            let fd = Foundation.accept(server.sockfd, &addr, &socklen)
+            getpeername(fd, &addr, &socklen)
+            let client = try! SXClientSocket(fd: fd,
+                                             addrinfo: (addr: addr, len: socklen),
+                                             sockinfo: (type: conf.type, protocol: conf.`protocol`),
+                                             functions: fns)
+            service.acceptedHandler?(client)
+            return client
+        }
+    }
+    
+    public static func unix(service: SXService, domain: String, type: SocketTypes, backlog: Int = 50) throws -> SXServerSocket {
+        let conf = SXSocketConfiguation(domain: .unix, type: type, port: 0, backlog: backlog, using: 0)
+        let fns = SXClientSocket.standardIOHandlers
+        return try SXServerSocket(service: service, type: type, conf: conf) {
+            (server: SXServerSocket) throws -> SXClientSocket in
+            
+            var addr = sockaddr()
+            var socklen = socklen_t()
+            let fd = Foundation.accept(server.sockfd, &addr, &socklen)
+            getpeername(fd, &addr, &socklen)
+            let client = try! SXClientSocket(fd: fd,
+                                             addrinfo: (addr: addr, len: socklen),
+                                             sockinfo: (type: conf.type, protocol: conf.`protocol`),
+                                             functions: fns)
+            return client
+        }
+    }
 }
 
-open class SXConnectionService: SXService {
-    open var dataHandler: (SXQueue, Data) -> Bool
-    open var errHandler: ((SXQueue, Error) -> ())?
-    open var willTerminateHandler: ((SXQueue) -> ())?
-    open var didTerminateHandler: ((SXQueue) -> ())?
-    
-    public init(handler: @escaping (SXQueue, Data) -> Bool) {
-        self.dataHandler = handler
+//MARK: Runtime
+
+public extension SXServerSocket {
+    public func listen() throws {
+        if Foundation.listen(sockfd, Int32(self.backlog)) < 0 {
+            throw SocketError.listen(String.errno)
+        }
     }
+    
+    public func accept() throws -> ClientSocket {
+        return try self._accept(self)
+    }
+    
+    public func runloop(_ ev: event) {
+        do {
+            let client = try self.accept()
+            _ = try SXQueue(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
+        } catch {
+            print(error)
+        }
+        
+        #if os(FreeBSD) || os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(PS4)
+            self.manager?.thread.exec {
+                self.manager?.register(self)
+            }
+        #endif
+    }
+    
+    public func done() {
+        close(self.sockfd)
+    }
+    
+    private func listenloop() throws {
+        try self.listen()
+    }
+}
+
+public extension SXServerSocket {
+
 }
