@@ -41,7 +41,6 @@ public class SXQueue: KqueueManagable {
     public var userInfo = [String: Any]()
     
     public init(fd: Int32, readFrom r: Readable, writeTo w: Writable, with service: SXService) throws {
-        
         self.readAgent = r
         self.writeAgent = w
         self.service = service

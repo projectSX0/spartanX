@@ -156,10 +156,6 @@ public extension SXSocketAddress {
         }
     }
     
-//    public static func boardcastAddr(port: in_port_t = 0) throws -> SXSocketAddress {
-//        return SXSocketAddress(address: "255.255.255.255", withDomain: .inet, port: port)!
-//    }
-    
     public init(withDomain domain: SocketDomains, port: in_port_t) throws {
         switch domain {
         case .inet:

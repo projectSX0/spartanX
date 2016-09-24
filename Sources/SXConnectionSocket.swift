@@ -126,7 +126,6 @@ extension SXConnectionSocket: KqueueManagable {
             }
         }
     }
-//    #endif
     
     public func done() {
         if let manager = self.manager {
@@ -138,6 +137,27 @@ extension SXConnectionSocket: KqueueManagable {
 
 //MARK: - initializers
 public extension SXConnectionSocket {
+    
+    public init(unixDomainName: String, type: SocketTypes, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+        if type != .stream && type != .seqpacket {
+            throw SocketError.unconnectable
+        }
+        self.type = type
+        self.domain = .unix
+        self.`protocol` = `protocol`
+        self.readBufsize = bufsize
+        self.sockfd = socket(AF_UNIX, self.type.rawValue, `protocol`)
+        self.address = SXSocketAddress(address: unixDomainName, withDomain: .unix, port: 0)
+        switch self.address! {
+        case var .unix(addr):
+            if Foundation.connect(sockfd, pointer(of: &addr).cast(to: sockaddr.self), address!.socklen) == -1 {
+                throw SocketError.connect(String.errno)
+            }
+        default:
+            break
+        }
+    }
+    
     public init(tls: Bool = false, hostname: String, service: String, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
         let addresses: [SXSocketAddress] = try! DNS.lookup(hostname: hostname, service: service)
         var fd: Int32 = -1
@@ -200,6 +220,7 @@ public extension SXConnectionSocket {
                 break searchAddress
             case var .inet6(addr):
                 fd = socket(AF_INET6, type.rawValue, 0)
+                
                 if Foundation.connect(fd, pointer(of: &addr).cast(to: sockaddr.self), address.socklen) == -1 {
                     continue
                 }
@@ -236,7 +257,6 @@ public extension SXConnectionSocket {
             }
         default: throw DNS.Error.unknownDomain
         }
-        
     }
     
     public init(tls: Bool = true, ipv6: String, port: in_port_t, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
@@ -253,7 +273,6 @@ public extension SXConnectionSocket {
             }
         default: throw DNS.Error.unknownDomain
         }
-        
     }
     
     public init?(ipv4: String, service: String, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
@@ -288,6 +307,5 @@ public extension SXConnectionSocket {
             }
         default: throw DNS.Error.unknownDomain
         }
-        
     }
 }

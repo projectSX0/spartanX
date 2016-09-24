@@ -59,8 +59,6 @@ public extension SXKernelManager {
     
     public static func initializeDefault() {
         `default` = SXKernelManager(maxCPU: 1, evs_cpu: 5120)
-//        let dispatch = DispatchQueue(label: UUID().uuidString)
-//        dispatch.s
     }
     
     public mutating func manage<Managable: KqueueManagable>(_ managable: Managable, setup: ((inout Managable) -> ())?) {
@@ -216,7 +214,6 @@ extension SXKernel {
             let nev = kevent(self.kq, nil, 0, &self.events, Int32(self.events.count), nil)
         #endif
         
-        print("\(nev)")
         if nev < 0 {
             self.thread.exec {
                 self.kqueue_runloop()
@@ -234,9 +231,7 @@ extension SXKernel {
             #else
                 let queue = self.queues[Int32(event.ident)]
             #endif
-            SXThreadPool.default.async {
-                queue?.runloop(event)
-            }
+            queue?.runloop(event)
         }
         
         self.thread.exec {
@@ -258,7 +253,6 @@ extension SXKernel {
         withMutex {
             self.queues[queue.ident] = queue
             self.queues[queue.ident]!.manager = self
-            
             #if os(Linux)
                 var ev = epoll_event()
                 ev.events = kind.value;
