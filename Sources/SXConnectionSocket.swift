@@ -36,6 +36,7 @@ import Darwin
 import Glibc
 #endif
 
+import struct swiftTLS.TLSClient
 import struct Foundation.Data
 import func CKit.pointer
 
@@ -63,6 +64,10 @@ public struct SXConnectionSocket: ConnectionSocket
     public var manager: SXKernel?
     
     public var errhandler: ((Error) -> Bool)?
+    
+//    internal var _read: (SXConnectionSocket) throws -> Data?
+//    internal var _write: (SXConnectionSocket, Data) throws -> ()
+//    internal var _clean: ((SXConnectionSocket) -> ())?
 }
 
 //MARK: - runtime
@@ -77,9 +82,19 @@ extension SXConnectionSocket: KqueueManagable {
     
     public static func oneshot(tls: Bool, hostname: String, service: String, request: Data, expectedResponseSize size: Int = SXConnectionSocket.defaultBufsize, callback: (Data?) -> () ) throws {
         let socket = try SXConnectionSocket(hostname: hostname, service: service, bufsize: size)
-        try socket.write(data: request)
-        let data = try socket.read()
-        callback(data)
+        socket.setBlockingMode(block: false)
+        
+        if tls {
+            let tlsContext = TLSClient.securedClient()
+            _ = try tlsContext.write(data: request)
+            let data = try tlsContext.read(size: size)
+            callback(data)
+        } else {
+            try socket.write(data: request)
+            let data = try socket.read()
+            callback(data)
+        }
+        
         socket.done()
     }
     
@@ -130,6 +145,7 @@ public extension SXConnectionSocket {
         if type != .stream && type != .seqpacket {
             throw SocketError.unconnectable
         }
+        
         self.type = type
         self.domain = .unix
         self.`protocol` = `protocol`
