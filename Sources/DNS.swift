@@ -35,7 +35,7 @@ import Darwin
 #else
 import Glibc
 #endif
-
+import Dispatch
 public struct DNS {
     public enum LookupHint {
         case Flags(Int32)
@@ -57,7 +57,6 @@ public extension DNS {
         var info: UnsafeMutablePointer<addrinfo>? = nil
         var cinfo: UnsafeMutablePointer<addrinfo>? = nil
         var ret = [SXSocketAddress]()
-        
         var hint = addrinfo()
         for hint_ in hints {
             switch hint_ {

@@ -90,8 +90,8 @@ public extension SXClientSocket {
     
     public static let standardIOHandlers: ClientFunctions = ClientFunctions(read: { (client: SXClientSocket) throws -> Data? in
         return client.isBlocking ?
-            try client.read_block() :
-            try client.read_nonblock()
+            try client.recv_block() :
+            try client.recv_nonblock()
         }, write: { (client: SXClientSocket, data: Data) throws -> () in
             if send(client.sockfd, data.bytes, data.length, 0) == -1 {
                 throw SocketError.send("send: \(String.errno)")

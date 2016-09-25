@@ -48,7 +48,6 @@ public struct SXSocketConfiguation {
     public var `protocol`: Int32
     public var backlog : Int
     
-    
     /* legacy */
     public init(domain: SocketDomains = .unspec,
                 type: SocketTypes = .stream,

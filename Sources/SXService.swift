@@ -36,12 +36,10 @@ import struct Foundation.Data
 public protocol SXService {
     var dataHandler: (SXQueue, Data) -> Bool { get set }
     var errHandler: ((SXQueue, Error) -> ())? { get set }
-    var willTerminateHandler: ((SXQueue) -> ())? { get set }
-    var didTerminateHandler: ((SXQueue) -> ())? { get set }
 }
 
 public protocol SXStreamSocketService : SXService {
-    var acceptedHandler: ((SXClientSocket) -> ())? { get set }
+    var acceptedHandler: ((inout SXClientSocket) -> ())? { get set }
 }
 
 open class SXConnectionService: SXService {

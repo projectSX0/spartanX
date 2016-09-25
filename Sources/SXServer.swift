@@ -87,11 +87,11 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
                         var socklen = socklen_t()
                         let fd = Foundation.accept(server.sockfd, &addr, &socklen)
                         getpeername(fd, &addr, &socklen)
-                        let client = try! SXClientSocket(fd: fd,
+                        var client = try! SXClientSocket(fd: fd,
                                                          addrinfo: (addr: addr, len: socklen),
                                                          sockinfo: (type: conf.type, protocol: conf.`protocol`),
                                                          functions: fns)
-                        service.acceptedHandler?(client)
+                        service.acceptedHandler?(&client)
                         return client
                     }
     }
@@ -107,11 +107,11 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
             var socklen = socklen_t()
             let fd = Foundation.accept(server.sockfd, &addr, &socklen)
             getpeername(fd, &addr, &socklen)
-            let client = try! SXClientSocket(fd: fd,
+            var client = try! SXClientSocket(fd: fd,
                                              addrinfo: (addr: addr, len: socklen),
                                              sockinfo: (type: conf.type, protocol: conf.`protocol`),
                                              functions: fns)
-            service.acceptedHandler?(client)
+            service.acceptedHandler?(&client)
             return client
         }
     }
@@ -119,6 +119,7 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
     public static func unix(service: SXService, domain: String, type: SocketTypes, backlog: Int = 50) throws -> SXServerSocket {
         let conf = SXSocketConfiguation(unixDomain: domain, type: type, backlog: backlog, using: 0)
         let fns = SXClientSocket.standardIOHandlers
+        
         return try SXServerSocket(service: service, type: type, conf: conf) {
             (server: SXServerSocket) throws -> SXClientSocket in
             
@@ -132,11 +133,11 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
                                              functions: fns)
             return client
         }
+        
     }
 }
 
 //MARK: Runtime
-
 public extension SXServerSocket {
     public func listen() throws {
         if Foundation.listen(sockfd, Int32(self.backlog)) < 0 {
@@ -153,6 +154,7 @@ public extension SXServerSocket {
             let client = try self.accept()
             _ = try SXQueue(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
         } catch {
+            //FIXME: use real handler
             print(error)
         }
         

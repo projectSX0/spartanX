@@ -46,6 +46,7 @@ private func connect(_ fd: Int32, _ sockaddr: UnsafePointer<sockaddr>, _ socklen
     return Glibc.connect(fd, sockaddr, socklen_t)
     #endif
 }
+
 public struct SXConnectionSocket: ConnectionSocket
 {
     static let defaultBufsize = 4096

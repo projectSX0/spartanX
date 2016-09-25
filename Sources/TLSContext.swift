@@ -30,6 +30,9 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
+import swiftTLS
+import struct Foundation.Data
+
 public struct SXTLSContextInfo {
     public var certificate: (path: String, passwd: String?)
     public var privateKey: (path: String, passwd: String?)
@@ -44,5 +47,66 @@ public struct SXTLSContextInfo {
         self.privateKey = privateKey
         self.ca = ca
         self.ca_path = ca_path
+    }
+}
+
+public class SXTLSLayer :  SXStreamSocketService {
+    
+    public var context: TLSServer
+    public var dataHandler: (SXQueue, Data) -> Bool
+    public var errHandler: ((SXQueue, Error) -> ())?
+    public var acceptedHandler: ((inout SXClientSocket) -> ())?
+    
+    public var clientsMap = [Int32: TLSClient]()
+    
+    public init(service: SXService, tls: SXTLSContextInfo) throws {
+        var config: TLSConfig!
+        
+        if let ca_path = tls.ca_path {
+            config = try TLSConfig(ca_path: ca_path,
+                                    cert: tls.certificate.path,
+                                    cert_passwd: tls.certificate.passwd,
+                                    key: tls.certificate.path,
+                                    key_passwd: tls.certificate.passwd)
+        } else if let ca = tls.ca {
+            config = try TLSConfig(ca: ca.path,
+                                   ca_passwd: ca.passwd,
+                                   cert: tls.certificate.path,
+                                   cert_passwd: tls.certificate.passwd,
+                                   key: tls.certificate.path,
+                                   key_passwd: tls.certificate.passwd)
+        } else {
+            config = try TLSConfig(cert: tls.certificate.path,
+                                   cert_passwd: tls.certificate.passwd,
+                                   key: tls.certificate.path,
+                                   key_passwd: tls.certificate.passwd)
+        }
+        
+        self.context = try TLSServer(with: config)
+        
+        self.dataHandler = service.dataHandler
+        self.errHandler = { queue, error in
+            switch error {
+            case TLSError.filedescriptorNotWriteable, TLSError.filedescriptorNotReadable:
+                break
+            default:
+                service.errHandler?(queue, error)
+            }
+        }
+        
+        self.acceptedHandler = { client in
+            do {
+                self.clientsMap[client.sockfd] = try self.context.accept(socket: client.sockfd)
+                client._read = { client_socket throws -> Data? in
+                    return try self.clientsMap[client_socket.sockfd]?.read(size: 16 * 1024)
+                }
+                
+                client._write = { client_socket, data throws in
+                    _ = try self.clientsMap[client_socket.sockfd]?.write(data: data)
+                }
+            } catch {
+                
+            }
+        }
     }
 }
