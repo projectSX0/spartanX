@@ -30,6 +30,7 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
+#if __tls
 import swiftTLS
 import struct Foundation.Data
 
@@ -110,3 +111,4 @@ public class SXTLSLayer :  SXStreamSocketService {
         }
     }
 }
+#endif

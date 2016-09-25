@@ -53,7 +53,7 @@ private func connect(_ fd: Int32, _ sockaddr: UnsafePointer<sockaddr>, _ socklen
 
 public struct SXConnectionSocket: ConnectionSocket
 {
-    static let defaultBufsize = 4096
+    static let defaultBufsize = 4096 * 1024
     public var sockfd: Int32
     public var domain: SocketDomains
     public var type: SocketTypes
@@ -99,7 +99,7 @@ extension SXConnectionSocket: KqueueManagable {
     public static func oneshot(unixDomain: String, type: SocketTypes, request: Data, expectedResponseSize size: Int = SXConnectionSocket.defaultBufsize, timeout: timeval?, callback: (Data?) -> () ) throws {
         let socket = try SXConnectionSocket(unixDomainName: unixDomain, type: type)
         try socket.write(data: request)
-        socket.setBlockingMode(block: false)
+//        socket.setBlockingMode(block: false)
         let data = try socket.read(bufsize: size)
         callback(data)
         socket.done()
