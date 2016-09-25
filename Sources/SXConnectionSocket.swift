@@ -36,7 +36,10 @@ import Darwin
 import Glibc
 #endif
 
+#if __tls
 import struct swiftTLS.TLSClient
+#endif
+
 import struct Foundation.Data
 import func CKit.pointer
 
@@ -56,7 +59,9 @@ public struct SXConnectionSocket: ConnectionSocket
     public var type: SocketTypes
     public var `protocol`: Int32
     public var port: in_port_t?
+    #if __tls
     let tlsContext = TLSClient.securedClient()
+    #endif
     public var address: SXSocketAddress?
     public var readBufsize: size_t
     
@@ -79,8 +84,21 @@ extension SXConnectionSocket: KqueueManagable {
         }
     }
     
-    public static func oneshot(tls: Bool, hostname: String, service: String, request: Data, expectedResponseSize size: Int = SXConnectionSocket.defaultBufsize, callback: (Data?) -> () ) throws {
+    public static func oneshot(tls: Bool, hostname: String, service: String, request: Data, expectedResponseSize size: Int = SXConnectionSocket.defaultBufsize, timeout: timeval?, callback: (Data?) -> () ) throws {
         let socket = try SXConnectionSocket(tls: tls, hostname: hostname, service: service, bufsize: size)
+        try socket.write(data: request)
+        if let timeout = timeout {
+            socket.setTimeoutInterval(timeout)
+        }
+        socket.setBlockingMode(block: false)
+        let data = try socket.read(bufsize: size)
+        callback(data)
+        socket.done()
+    }
+    
+    public static func oneshot(unixDomain: String, type: SocketTypes, request: Data, expectedResponseSize size: Int = SXConnectionSocket.defaultBufsize, timeout: timeval?, callback: (Data?) -> () ) throws {
+        let socket = try SXConnectionSocket(unixDomainName: unixDomain, type: type)
+        try socket.write(data: request)
         socket.setBlockingMode(block: false)
         let data = try socket.read(bufsize: size)
         callback(data)
@@ -143,8 +161,10 @@ public extension SXConnectionSocket {
         self.address = SXSocketAddress(address: unixDomainName, withDomain: .unix, port: 0)
         switch self.address! {
         case var .unix(addr):
-            if connect(sockfd, pointer(of: &addr).cast(to: sockaddr.self), address!.socklen) == -1 {
-                throw SocketError.connect(String.errno)
+            if type == .stream {
+                if connect(sockfd, pointer(of: &addr).cast(to: sockaddr.self), address!.socklen) == -1 {
+                    throw SocketError.connect(String.errno)
+                }
             }
         default:
             break
@@ -159,6 +179,7 @@ public extension SXConnectionSocket {
         self.`protocol` = `protocol`
         self.readBufsize = bufsize
         
+        #if __tls
         if tls {
             self._read = { client_socket throws -> Data? in
                 return try client_socket.tlsContext.read(size: 16 * 1024)
@@ -168,6 +189,7 @@ public extension SXConnectionSocket {
                 _ = try client_socket.write(data: data)
             }
         }
+        #endif
         
         searchAddress: for address in addresses {
             switch address {
@@ -205,7 +227,7 @@ public extension SXConnectionSocket {
         self.domain = .unspec
         self.`protocol` = `protocol`
         self.readBufsize = bufsize
-        
+        #if __tls
         if tls {
             self._read = { client_socket throws -> Data? in
                 return try client_socket.tlsContext.read(size: 16 * 1024)
@@ -215,7 +237,7 @@ public extension SXConnectionSocket {
                 _ = try client_socket.write(data: data)
             }
         }
-        
+        #endif
         searchAddress: for address in addresses {
             switch address {
             case var .inet(addr):

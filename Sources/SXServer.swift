@@ -71,9 +71,8 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
         
         if self.type == .stream {
             try self.bind()
+            try self.listen()
         }
-
-        try self.listen()
     }
     
     public static func tcpIpv4(service: SXStreamSocketService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
@@ -151,8 +150,10 @@ public extension SXServerSocket {
     
     public func runloop(_ ev: event) {
         do {
-            let client = try self.accept()
-            _ = try SXQueue(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
+            if self.type == .stream {
+                let client = try self.accept()
+                _ = try SXQueue(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
+            }
         } catch {
             //FIXME: use real handler
             print(error)

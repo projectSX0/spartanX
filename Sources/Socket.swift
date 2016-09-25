@@ -69,6 +69,11 @@ extension Socket {
         _ = fcntl(self.sockfd, F_SETFL, block ? sockflags ^ O_NONBLOCK : sockflags | O_NONBLOCK)
     }
     
+    public func setTimeoutInterval(_ time: timeval) {
+        var time = time
+        setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &time, socklen_t(MemoryLayout<timeval>.size))
+    }
+    
     public var isBlocking: Bool {
         return ((fcntl(self.sockfd, F_GETFL, 0) & O_NONBLOCK) == 0)
     }
