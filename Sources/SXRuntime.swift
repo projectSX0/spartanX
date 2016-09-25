@@ -73,8 +73,8 @@ public extension SXKernelManager {
     public mutating func manage<Managable: KqueueManagable>(_ managable: Managable, setup: ((inout Managable) -> ())?) {
         var target = managable
         #if os(Linux)
-        if let _ = target as? SocketType {
-            (target as! SocketType).setBlockingMode(block: false)
+        if let _ = target as? Socket {
+            (target as! Socket).setBlockingMode(block: false)
         }
         #endif
         setup?(&target)
