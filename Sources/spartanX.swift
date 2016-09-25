@@ -69,3 +69,9 @@ public struct SXSocketConfiguation {
         self.`protocol` = `protocol`
     }
 }
+
+public func printd(_ s: String) {
+    #if debug
+    print(s)
+    #endif
+}

@@ -83,14 +83,18 @@ public extension SXKernelManager {
 
     @inline(__always)
     internal mutating func register(_ queue: KqueueManagable) {
+        printd("registering \(queue.ident): \(#function): \(#file): \(#line)")
         let _leastBusyKernel = leastBusyKernel()
         map[queue.ident] = _leastBusyKernel
         _leastBusyKernel?.register(queue)
+        printd("returns: registering \(queue.ident): \(#function): \(#file): \(#line)")
     }
     
     internal mutating func unregister(ident: Int32, of filter: SXKernel.Filter) {
+        printd("unregistering \(ident): \(#function): \(#file): \(#line)")
         let kernel = map[ident]
         kernel?.remove(ident: ident, for: filter)
+        printd("returns: unregistering \(ident): \(#function): \(#file): \(#line)")
         map[ident] = nil
     }
     
@@ -194,9 +198,11 @@ extension SXKernel {
 extension SXKernel {
     
     private func kqueue_end() {
+        printd("ending: \(#function): \(#file): \(#line)")
         self.withMutex {
             self.actived = false
         }
+        printd("return: ending: \(#function): \(#file): \(#line)")
     }
     /*
     fileprivate func ident(type: EventType, id: Int32) -> Int32 {
@@ -212,16 +218,19 @@ extension SXKernel {
             }
             return false
         }) {
+            printd("events count == 0: \(#function): \(#file): \(#line)")
             kqueue_end()
             return
         }
         
         
+        printd("event_waiting: \(#function): \(#file): \(#line)")
         #if os(Linux)
         let nev = epoll_wait(self.kq, &self.events, Int32(self.events.count), -1)
         #else
         let nev = kevent(self.kq, nil, 0, &self.events, Int32(self.events.count), nil)
         #endif
+        printd("event_found_active: fd_count: \(nev): \(#function): \(#file): \(#line)")
         
         if nev < 0 {
             self.thread.exec {
@@ -240,10 +249,24 @@ extension SXKernel {
             #else
             let queue = self.queues[Int32(event.ident)]
             #endif
+            
+            #if os(Linux)
+            printd("queue \(event.data.fd) runloop_start: \(#function): \(#file): \(#line)")
+            #else
+            printd("queue \(event.ident) runloop_start: \(#function): \(#file): \(#line)")
+            #endif
+            
             queue?.runloop(event)
+            
+            #if os(Linux)
+            printd("queue \(event.data.fd) runloop_ends: \(#function): \(#file): \(#line)")
+            #else
+            printd("queue \(event.ident) runloop_ends: \(#function): \(#file): \(#line)")
+            #endif
         }
         
         self.thread.exec {
+            printd("queue up kqueue: \(#file): \(#line)")
             self.kqueue_runloop()
         }
     }
@@ -275,17 +298,23 @@ extension SXKernel {
                           udata: nil)
             kevent(kq, &k, 1, nil, 0, nil)
             #endif
+            printd("\(#function): \(#file): \(#line)")
             count += 1
         }
         
         if !actived {
             activate()
         }
+        
+        printd("returned: \(#function): \(#file): \(#line)")
     }
     
     func remove(ident: Int32, for filter: Filter) {
         withMutex {
             self.queues[ident] = nil
+            #if debug
+            print("\(#function): \(#file): \(#line)")
+            #endif
             #if os(Linux)
             var ev = epoll_event()
             ev.events = filter.value;
@@ -302,5 +331,6 @@ extension SXKernel {
             #endif
             count -= 1
         }
+        printd("returned: \(#function): \(#file): \(#line)")
     }
 }
