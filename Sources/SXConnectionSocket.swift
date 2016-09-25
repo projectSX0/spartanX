@@ -56,7 +56,7 @@ public struct SXConnectionSocket: ConnectionSocket
     public var type: SocketTypes
     public var `protocol`: Int32
     public var port: in_port_t?
-    
+    let tlsContext = TLSClient.securedClient()
     public var address: SXSocketAddress?
     public var readBufsize: size_t
     
@@ -65,9 +65,8 @@ public struct SXConnectionSocket: ConnectionSocket
     
     public var errhandler: ((Error) -> Bool)?
     
-//    internal var _read: (SXConnectionSocket) throws -> Data?
-//    internal var _write: (SXConnectionSocket, Data) throws -> ()
-//    internal var _clean: ((SXConnectionSocket) -> ())?
+    internal var _read: (SXConnectionSocket) throws -> Data? = SXClientSocket.standardIOHandlers.read as! (Readable & Socket) throws -> Data?
+    internal var _write: (SXConnectionSocket, Data) throws -> () = SXClientSocket.standardIOHandlers.write as! (Socket & Writable, Data) throws -> ()
 }
 
 //MARK: - runtime
@@ -81,20 +80,10 @@ extension SXConnectionSocket: KqueueManagable {
     }
     
     public static func oneshot(tls: Bool, hostname: String, service: String, request: Data, expectedResponseSize size: Int = SXConnectionSocket.defaultBufsize, callback: (Data?) -> () ) throws {
-        let socket = try SXConnectionSocket(hostname: hostname, service: service, bufsize: size)
+        let socket = try SXConnectionSocket(tls: tls, hostname: hostname, service: service, bufsize: size)
         socket.setBlockingMode(block: false)
-        
-        if tls {
-            let tlsContext = TLSClient.securedClient()
-            _ = try tlsContext.write(data: request)
-            let data = try tlsContext.read(size: size)
-            callback(data)
-        } else {
-            try socket.write(data: request)
-            let data = try socket.read()
-            callback(data)
-        }
-        
+        let data = try socket.read(bufsize: size)
+        callback(data)
         socket.done()
     }
     
@@ -162,13 +151,23 @@ public extension SXConnectionSocket {
         }
     }
     
-    public init(hostname: String, service: String, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+    public init(tls: Bool = false, hostname: String, service: String, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
         let addresses: [SXSocketAddress] = try! DNS.lookup(hostname: hostname, service: service)
         var fd: Int32 = -1
         self.type = type
         self.domain = .unspec
         self.`protocol` = `protocol`
         self.readBufsize = bufsize
+        
+        if tls {
+            self._read = { client_socket throws -> Data? in
+                return try client_socket.tlsContext.read(size: 16 * 1024)
+            }
+            
+            self._write = { client_socket, data throws in
+                _ = try client_socket.write(data: data)
+            }
+        }
         
         searchAddress: for address in addresses {
             switch address {
@@ -199,13 +198,23 @@ public extension SXConnectionSocket {
     }
     
     
-    public init(hostname: String, port: in_port_t, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+    public init(tls: Bool = false, hostname: String, port: in_port_t, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
         let addresses: [SXSocketAddress] = try! DNS.lookup(hostname: hostname, port: port)
         var fd: Int32 = -1
         self.type = type
         self.domain = .unspec
         self.`protocol` = `protocol`
         self.readBufsize = bufsize
+        
+        if tls {
+            self._read = { client_socket throws -> Data? in
+                return try client_socket.tlsContext.read(size: 16 * 1024)
+            }
+            
+            self._write = { client_socket, data throws in
+                _ = try client_socket.write(data: data)
+            }
+        }
         
         searchAddress: for address in addresses {
             switch address {
