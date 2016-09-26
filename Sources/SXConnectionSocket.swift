@@ -102,7 +102,7 @@ extension SXConnectionSocket: KqueueManagable {
         if let timeout = timeout {
             socket.setTimeoutInterval(timeout)
         }
-        //        socket.setBlockingMode(block: false)
+        socket.setBlockingMode(block: true)
         let data = try socket.read(bufsize: size)
         callback(data)
         socket.done()
@@ -157,6 +157,7 @@ public extension SXConnectionSocket {
         }
         
         self._read = { client throws -> Data? in
+            client.setBlockingMode(block: true)
             return client.isBlocking ?
                 try client.recv_block() :
                 try client.recv_nonblock()
@@ -358,7 +359,6 @@ public extension SXConnectionSocket {
                 throw SocketError.send("send: \(String.errno)")
             }
         }
-        
         
         switch self.address! {
         case var .inet6(addr):

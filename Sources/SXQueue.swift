@@ -52,7 +52,7 @@ public class SXQueue: KqueueManagable {
         self.readAgent.done()
         self.writeAgent.done()
         #if debug
-        print("connection of fd \(ident) is ended, \(#function): \(#file): \(#line)")
+        printd("connection of fd \(ident) is ended, \(#function): \(#file): \(#line)")
         #endif
         SXKernelManager.default?.unregister(ident: ident, of: .read)
     }

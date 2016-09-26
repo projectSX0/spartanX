@@ -151,7 +151,8 @@ public extension SXSocketAddress {
             self = .inet(mutablePointer(of: &addr).cast(to: sockaddr_in.self).pointee)
         case UInt32(MemoryLayout<sockaddr_in6>.size):
             self = .inet6(mutablePointer(of: &addr).cast(to: sockaddr_in6.self).pointee)
-            
+        case UInt32(MemoryLayout<sockaddr_un>.size):
+            self = .unix(mutablePointer(of: &addr).cast(to: sockaddr_un.self).pointee)
         default:
             throw Error.nonImplementedDomain
         }

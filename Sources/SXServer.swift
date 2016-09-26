@@ -126,6 +126,9 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
             var socklen = socklen_t()
             let fd = Foundation.accept(server.sockfd, &addr, &socklen)
             getpeername(fd, &addr, &socklen)
+            #if os(Linux)
+                socklen = 110 /* linux getpeername bug */
+            #endif
             let client = try! SXClientSocket(fd: fd,
                                              addrinfo: (addr: addr, len: socklen),
                                              sockinfo: (type: conf.type, protocol: conf.`protocol`),
