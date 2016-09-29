@@ -31,7 +31,7 @@
 //
 
 public protocol Transmittable {
-    func send()
+    func send(to: Writable)
 }
 
 
