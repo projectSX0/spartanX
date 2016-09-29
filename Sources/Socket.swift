@@ -64,7 +64,7 @@ extension Socket {
         return self.sockfd
     }
     
-    internal func setBlockingMode(block: Bool) {
+    public func setBlockingMode(block: Bool) {
         let sockflags = fcntl(self.sockfd, F_GETFL, 0)
         _ = fcntl(self.sockfd, F_SETFL, block ? sockflags ^ O_NONBLOCK : sockflags | O_NONBLOCK)
     }
@@ -80,6 +80,7 @@ extension Socket {
 }
 
 extension Readable where Self : Socket {
+    
     func recv_block(r_flags: Int32 = 0) throws -> Data? {
         let size = self.readBufsize
         
@@ -128,6 +129,42 @@ extension Readable where Self : Socket {
         
         return Data(bytes: buffer, count: len)
     }
+}
+
+extension Writable where Self : Socket {
+    
+    public func withNopush(_ block: (Socket & Writable) throws -> ()) throws {
+        var yes: Int32 = 1
+    
+        /* OS X has bug on TCP_NOPUSH */
+        #if os(Linux)
+        setsockopt(sockfd, SOL_SOCKET, TCP_CORK, &yes, socklen_t(MemoryLayout<Int32>.size))
+        #endif
+        yes = 0
+        try block(self)
+
+        #if os(Linux)
+        setsockopt(sockfd, SOL_SOCKET, TCP_CORK, &no, socklen_t(MemoryLayout<Int32>.size))
+        #endif
+    }
+    
+    
+    public func write(data: Data, flags: Int32 = 0) throws {
+        if send(self.sockfd, data.bytes, data.length, flags) == -1 {
+            throw SocketError.send(String.errno)
+        }
+    }
+    
+    #if os(Linux)
+    public func write(file fd: Int32, header: Data) throws {
+        try withNopush { (self) in
+            if header.length > 0 {
+                try self.write(data: header)
+            }
+            sendfile(sockfd, fd, 0, nil, nil, 0)
+        }
+    }
+    #endif
 }
 
 extension KqueueManagable where Self : Socket {

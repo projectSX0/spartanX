@@ -26,37 +26,12 @@
 //  of the authors and should not be interpreted as representing official policies,
 //  either expressed or implied, of the FreeBSD Project.
 //
-//  Created by yuuji on 9/5/16.
+//  Created by yuuji on 9/27/16.
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-
-import struct Foundation.Data
-
-//public protocol SXService {
-//    var dataHandler: (SXQueue, Data) -> Bool { get set }
-//    var errHandler: ((SXQueue, Error) -> ())? { get set }
-//}
-
-public protocol SXService {
-    var dataAvailable: (SXQueue, Int) throws -> () { get set }
-    var errHandler: ((SXQueue, Error) -> ())? { get set }
+public protocol Transmittable {
+    func send()
 }
-
-public protocol SXStreamSocketService : SXService {
-    var acceptedHandler: ((inout SXClientSocket) -> ())? { get set }
-}
-
-open class SXConnectionService: SXService {
-    open var dataAvailable: (SXQueue, Int) throws -> ()
-    open var errHandler: ((SXQueue, Error) -> ())?
-    open var willTerminateHandler: ((SXQueue) -> ())?
-    open var didTerminateHandler: ((SXQueue) -> ())?
-    
-    public init(handler: @escaping (SXQueue, Int) throws -> ()) {
-        self.dataAvailable = handler
-    }
-}
-
 
 
