@@ -133,38 +133,34 @@ extension Readable where Self : Socket {
 
 extension Writable where Self : Socket {
     
-    public func withNopush(_ block: (Socket & Writable) throws -> ()) throws {
-        var yes: Int32 = 1
-    
-        /* OS X has bug on TCP_NOPUSH */
-        #if os(Linux)
-        setsockopt(sockfd, SOL_SOCKET, TCP_CORK, &yes, socklen_t(MemoryLayout<Int32>.size))
-        #endif
-        yes = 0
-        try block(self)
-
-        #if os(Linux)
-        setsockopt(sockfd, SOL_SOCKET, TCP_CORK, &no, socklen_t(MemoryLayout<Int32>.size))
-        #endif
-    }
-    
-    
     public func write(data: Data, flags: Int32 = 0) throws {
         if send(self.sockfd, data.bytes, data.length, flags) == -1 {
             throw SocketError.send(String.errno)
         }
     }
     
-    #if os(Linux)
     public func write(file fd: Int32, header: Data) throws {
-        try withNopush { (self) in
-            if header.length > 0 {
-                try self.write(data: header)
-            }
-            sendfile(sockfd, fd, 0, nil, nil, 0)
+        #if os(FreeBSD) || os(OSX) || os(iOS) || os(tvOS) || os(watchOS)
+        var header = header
+        var hdvec = header.withUnsafeMutableBytes {
+            return iovec(iov_base: $0, iov_len: header.length)
         }
+
+        var _sf_hdtr = sf_hdtr(headers: &hdvec, hdr_cnt: 1, trailers: nil, trl_cnt: 0)
+        if sendfile(fd, sockfd, 0, nil, &_sf_hdtr, 0) == -1 {
+            throw SocketError.sendfile(String.errno)
+        }
+            
+        #else
+        var yes: Int32 = 1
+        setsockopt(sockfd, SOL_SOCKET, TCP_CORK, &yes, socklen_t(MemoryLayout<Int32>.size))
+        yes = 0
+        try self.write(data: header)
+        sendfile(sockfd, fd, 0, nil, nil, 0)
+        setsockopt(sockfd, SOL_SOCKET, TCP_CORK, &no, socklen_t(MemoryLayout<Int32>.size))
+        #endif
+
     }
-    #endif
 }
 
 extension KqueueManagable where Self : Socket {

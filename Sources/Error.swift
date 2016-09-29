@@ -37,6 +37,7 @@ public enum SocketError: Error {
     case connect(String)
     case send(String)
     case recv(String)
+    case sendfile(String)
     case listen(String)
     case unconnectable
     case nonInetDomain

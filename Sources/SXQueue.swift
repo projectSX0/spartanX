@@ -61,7 +61,6 @@ public class SXQueue: KqueueManagable {
         
         do {
             #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(FreeBSD) || os(PS4)
-//            self.readAgent.readBufsize = ev.data + 1
             let availableDataSize: Int = ev.data + 1
             #elseif os(Linux) || os(Android)
             var availableDataSize: Int = 0

@@ -35,7 +35,7 @@ import Darwin
 #else
 import Glibc
 #endif
-import Dispatch
+
 public struct DNS {
     public enum LookupHint {
         case Flags(Int32)
