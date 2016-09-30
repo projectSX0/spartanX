@@ -30,6 +30,10 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
+#if os(Linux)
+import Glibc
+import func CKit.mutablePointer
+#endif
 public class SXQueue: KqueueManagable {
     
     public var ident: Int32
@@ -64,7 +68,7 @@ public class SXQueue: KqueueManagable {
             let availableDataSize: Int = ev.data + 1
             #elseif os(Linux) || os(Android)
             var availableDataSize: Int = 0
-            ioctl(ev.data.fd, FIONREAD, &availableDataSize)
+            _ = ioctl(ev.data.fd, UInt(FIONREAD), UnsafeMutableRawPointer(mutablePointer(of: &availableDataSize)))
             #endif
             
             try self.service.dataAvailable(self, availableDataSize)

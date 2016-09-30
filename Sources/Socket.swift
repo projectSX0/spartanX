@@ -36,6 +36,8 @@ import struct Foundation.Data
 import Darwin
 #else
 import Glibc
+import spartanXLinux
+import CKit
 #endif
 
 public protocol Socket : UNIXFileDescriptor {
@@ -156,8 +158,8 @@ extension Writable where Self : Socket {
         setsockopt(sockfd, SOL_SOCKET, TCP_CORK, &yes, socklen_t(MemoryLayout<Int32>.size))
         yes = 0
         try self.write(data: header)
-        sendfile(sockfd, fd, 0, nil, nil, 0)
-        setsockopt(sockfd, SOL_SOCKET, TCP_CORK, &no, socklen_t(MemoryLayout<Int32>.size))
+        sendfile(sockfd, fd, nil, try! FileStatus(fd: fd).size)
+        setsockopt(sockfd, SOL_SOCKET, TCP_CORK, &yes, socklen_t(MemoryLayout<Int32>.size))
         #endif
 
     }
