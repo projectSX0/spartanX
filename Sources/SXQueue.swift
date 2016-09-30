@@ -31,9 +31,10 @@
 //
 
 #if os(Linux)
-import Glibc
+import Glibc /* ioctl */
 import func CKit.mutablePointer
 #endif
+
 public class SXQueue: KqueueManagable {
     
     public var ident: Int32
