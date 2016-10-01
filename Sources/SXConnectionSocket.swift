@@ -36,9 +36,11 @@ import Darwin
 import Glibc
 #if os(Linux)
 import spartanXLinux
-import CKit
 #endif /* os(Linux) */
 #endif /* osx ios watchos tvos*/
+
+import CKit
+import Foundation
 
 #if __tls
     import struct swiftTLS.TLSClient
@@ -112,10 +114,15 @@ extension SXConnectionSocket: KqueueManagable {
         socket.done()
     }
     
-//    public func read() throws -> Data? {
-//        return try read(bufsize: self.readBufsize)
-//    }
-//    
+    public func read() throws -> Data? {
+        var size: Int = 0
+        #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+        let FIONREAD = 1074030207 /* Trust me, it is FIONREAD found in <sys/filio.h>, somehow it cannot import to swift */
+        #endif
+        _ = ioctl(sockfd, UInt(FIONREAD), UnsafeMutableRawPointer(mutablePointer(of: &size)))
+        return try read(size: size)
+    }
+//
     @inline(__always)
     public func read(size: Int) throws -> Data? {
         return self.isBlocking ?
