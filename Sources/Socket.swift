@@ -83,8 +83,8 @@ extension Socket {
 
 extension Readable where Self : Socket {
     
-    func recv_block(r_flags: Int32 = 0) throws -> Data? {
-        let size = self.readBufsize
+    func recv_block(size: Int, r_flags: Int32 = 0) throws -> Data? {
+//        let size = self.readBufsize
         
         var buffer = [UInt8](repeating: 0, count: size)
         var len = 0
@@ -102,8 +102,8 @@ extension Readable where Self : Socket {
         return Data(bytes: buffer, count: len)
     }
     
-    func recv_nonblock(r_flags: Int32 = 0) throws -> Data? {
-        let size = self.readBufsize
+    func recv_nonblock(size: Int, r_flags: Int32 = 0) throws -> Data? {
+//        let size = self.readBufsize
         
         var buffer = [UInt8](repeating: 0, count: size)
         var len = 0

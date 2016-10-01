@@ -66,22 +66,23 @@ public class SXQueue: KqueueManagable {
         
         do {
             #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(FreeBSD) || os(PS4)
-            let availableDataSize: Int = ev.data + 1
+            let availableDataSize: Int = ev.data
             #elseif os(Linux) || os(Android)
             var availableDataSize: Int = 0
             _ = ioctl(ev.data.fd, UInt(FIONREAD), UnsafeMutableRawPointer(mutablePointer(of: &availableDataSize)))
             #endif
             
-            try self.service.dataAvailable(self, availableDataSize)
-//            if let data = try self.readAgent.read() {
-//                
-//                if !self.service.dataHandler(self, data) {
-//                    return terminate()
-//                }
+//            self.readAgent.readBufsize = availableDataSize
+
+            if let data = try self.readAgent.read(size: availableDataSize) {
+                
+                if try !self.service.dataHandler(self, data) {
+                    return terminate()
+                }
             
-//            } else {
-//                return terminate()
-//            }
+            } else {
+                return terminate()
+            }
             
         } catch {
             self.service.errHandler?(self, error)

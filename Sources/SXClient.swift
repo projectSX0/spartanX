@@ -39,17 +39,17 @@ import struct Foundation.Data
 #endif
 
 public struct ClientFunctions<ClientSocketType> {
-    var read: (ClientSocketType) throws -> Data?
+    var read: (ClientSocketType, Int) throws -> Data?
     var write: (ClientSocketType, _ data: Data) throws -> ()
     var clean: ((ClientSocketType) -> ())?
 }
 
 public struct SXClientSocket : ClientSocket {
-    
-    internal var _read: (SXClientSocket) throws -> Data?
-    internal var _write: (SXClientSocket, Data) throws -> ()
-    internal var _clean: ((SXClientSocket) -> ())?
-    
+//    
+    internal var readHandler: (SXClientSocket, Int) throws -> Data?
+    internal var writeHandler: (SXClientSocket, Data) throws -> ()
+//    internal var _clean: ((SXClientSocket) -> ())?
+//    
     public var sockfd: Int32
     public var domain: SocketDomains
     public var type: SocketTypes
@@ -63,7 +63,8 @@ public struct SXClientSocket : ClientSocket {
     internal init(fd: Int32,
                   addrinfo: (addr: sockaddr, len: socklen_t),
                   sockinfo: (type: SocketTypes, `protocol`: Int32),
-                  functions: ClientFunctions<SXClientSocket>) throws {
+                  functions: ClientFunctions<SXClientSocket>
+        ) throws {
         
         self.address = try SXSocketAddress(addrinfo.addr, socklen: addrinfo.len)
         self.sockfd = fd
@@ -81,34 +82,34 @@ public struct SXClientSocket : ClientSocket {
         
         self.type = sockinfo.type
         self.`protocol` = sockinfo.`protocol`
-        self._read = functions.read
-        self._write = functions.write
+        self.readHandler = functions.read
+        self.writeHandler = functions.write
     }
 }
 
 public extension SXClientSocket {
     
-    public static let standardIOHandlers: ClientFunctions = ClientFunctions(read: { (client: Socket & Readable) throws -> Data? in
+    public static let standardIOHandlers: ClientFunctions = ClientFunctions(read: { (client: Socket & Readable, availableCount: Int) throws -> Data? in
         return client.isBlocking ?
-            try client.recv_block() :
-            try client.recv_nonblock()
+            try client.recv_block(size: availableCount) :
+            try client.recv_nonblock(size: availableCount)
         }, write: { (client: Socket & Writable, data: Data) throws -> () in
             if send(client.sockfd, data.bytes, data.length, 0) == -1 {
                 throw SocketError.send("send: \(String.errno)")
             }
-    }) { (_ client: SXClientSocket) in}
+    }) { (_ client: SXClientSocket) in }
     
     
     public func write(data: Data) throws {
-        try self._write(self, data)
+        try self.writeHandler(self, data)
     }
     
-    public func read() throws -> Data? {
-        return try self._read(self)
+    public func read(size: Int) throws -> Data? {
+        return try self.readHandler(self, size)
     }
     
     public func done() {
-        self._clean?(self)
+//        self._clean?(self)
         close(self.sockfd)
     }
 }

@@ -39,7 +39,7 @@ import struct Foundation.Data
 //}
 
 public protocol SXService {
-    var dataAvailable: (SXQueue, Int) throws -> () { get set }
+    var dataHandler: (SXQueue, Data) throws -> Bool  { get set }
     var errHandler: ((SXQueue, Error) -> ())? { get set }
 }
 
@@ -48,13 +48,13 @@ public protocol SXStreamSocketService : SXService {
 }
 
 open class SXConnectionService: SXService {
-    open var dataAvailable: (SXQueue, Int) throws -> ()
+    open var dataHandler: (SXQueue, Data) throws -> Bool
     open var errHandler: ((SXQueue, Error) -> ())?
     open var willTerminateHandler: ((SXQueue) -> ())?
     open var didTerminateHandler: ((SXQueue) -> ())?
     
-    public init(handler: @escaping (SXQueue, Int) throws -> ()) {
-        self.dataAvailable = handler
+    public init(handler: @escaping (SXQueue, Data) throws -> Bool) {
+        self.dataHandler = handler
     }
 }
 

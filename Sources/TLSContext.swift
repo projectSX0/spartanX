@@ -54,7 +54,7 @@ public struct SXTLSContextInfo {
 public class SXTLSLayer :  SXStreamSocketService {
     
     public var context: TLSServer
-    public var dataHandler: (SXQueue, Data) -> Bool
+    public var dataHandler: (SXQueue, Data) throws -> Bool 
     public var errHandler: ((SXQueue, Error) -> ())?
     public var acceptedHandler: ((inout SXClientSocket) -> ())?
     
@@ -65,10 +65,10 @@ public class SXTLSLayer :  SXStreamSocketService {
         
         if let ca_path = tls.ca_path {
             config = try TLSConfig(ca_path: ca_path,
-                                    cert: tls.certificate.path,
-                                    cert_passwd: tls.certificate.passwd,
-                                    key: tls.certificate.path,
-                                    key_passwd: tls.certificate.passwd)
+                                   cert: tls.certificate.path,
+                                   cert_passwd: tls.certificate.passwd,
+                                   key: tls.certificate.path,
+                                   key_passwd: tls.certificate.passwd)
         } else if let ca = tls.ca {
             config = try TLSConfig(ca: ca.path,
                                    ca_passwd: ca.passwd,
@@ -84,8 +84,9 @@ public class SXTLSLayer :  SXStreamSocketService {
         }
         
         self.context = try TLSServer(with: config)
-        
+
         self.dataHandler = service.dataHandler
+        
         self.errHandler = { queue, error in
             switch error {
             case TLSError.filedescriptorNotWriteable, TLSError.filedescriptorNotReadable:
@@ -98,11 +99,11 @@ public class SXTLSLayer :  SXStreamSocketService {
         self.acceptedHandler = { client in
             do {
                 self.clientsMap[client.sockfd] = try self.context.accept(socket: client.sockfd)
-                client._read = { client_socket throws -> Data? in
+                client.readHandler = { client_socket, _ throws -> Data? in
                     return try self.clientsMap[client_socket.sockfd]?.read(size: 16 * 1024)
                 }
                 
-                client._write = { client_socket, data throws in
+                client.writeHandler = { client_socket, data throws in
                     _ = try self.clientsMap[client_socket.sockfd]?.write(data: data)
                 }
             } catch {
@@ -111,4 +112,5 @@ public class SXTLSLayer :  SXStreamSocketService {
         }
     }
 }
+
 #endif

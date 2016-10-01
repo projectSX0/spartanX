@@ -31,10 +31,14 @@
 //
 
 #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-    import Darwin
+import Darwin
 #else
-    import Glibc
-#endif
+import Glibc
+#if os(Linux)
+import spartanXLinux
+import CKit
+#endif /* os(Linux) */
+#endif /* osx ios watchos tvos*/
 
 #if __tls
     import struct swiftTLS.TLSClient
@@ -70,8 +74,8 @@ public struct SXConnectionSocket: ConnectionSocket
     
     public var errhandler: ((Error) -> Bool)?
     
-    internal var _read: (Readable & Socket) throws -> Data?
-    internal var _write: (Socket & Writable, Data) throws -> ()
+    internal var readHandler: (Readable & Socket, Int) throws -> Data?
+    internal var writeHandler: (Writable & Socket, Data) throws -> ()
 }
 
 //MARK: - runtime
@@ -91,7 +95,7 @@ extension SXConnectionSocket: KqueueManagable {
             socket.setTimeoutInterval(timeout)
         }
         socket.setBlockingMode(block: false)
-        let data = try socket.read(bufsize: size)
+        let data = try socket.read(size: size)
         callback(data)
         socket.done()
     }
@@ -103,28 +107,30 @@ extension SXConnectionSocket: KqueueManagable {
             socket.setTimeoutInterval(timeout)
         }
         socket.setBlockingMode(block: true)
-        let data = try socket.read(bufsize: size)
+        let data = try socket.read(size: size)
         callback(data)
         socket.done()
     }
     
-    public func read() throws -> Data? {
-        return try read(bufsize: self.readBufsize)
-    }
-    
+//    public func read() throws -> Data? {
+//        return try read(bufsize: self.readBufsize)
+//    }
+//    
     @inline(__always)
-    public func read(bufsize size: Int) throws -> Data? {
+    public func read(size: Int) throws -> Data? {
         return self.isBlocking ?
-            try self.read_block() :
-            try self.read_nonblock()
+            try self.read_block(size: size) :
+            try self.read_nonblock(size: size)
     }
     
     public func runloop(_ ev: event) {
         do {
             #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(FreeBSD) || os(PS4)
-                let payload = try self.read(bufsize: ev.data)
+            let payload = try self.read(size: ev.data)
             #else
-                let payload = try self.read()
+            var size: Int = 0
+            _ = ioctl(ev.data.fd, UInt(FIONREAD), UnsafeMutableRawPointer(mutablePointer(of: &size)))
+            let payload = try self.read()
             #endif
             if handler?(payload) == false {
                 done()
@@ -156,14 +162,14 @@ public extension SXConnectionSocket {
             throw SocketError.unconnectable
         }
         
-        self._read = { client throws -> Data? in
+        self.readHandler = { client, size throws -> Data? in
             client.setBlockingMode(block: true)
             return client.isBlocking ?
-                try client.recv_block() :
-                try client.recv_nonblock()
+                try client.recv_block(size: size) :
+                try client.recv_nonblock(size: size)
         }
         
-        self._write =  { (client: Socket & Writable, data: Data) throws -> () in
+        self.writeHandler =  { (client: Socket & Writable, data: Data) throws -> () in
             if send(client.sockfd, data.bytes, data.length, 0) == -1 {
                 throw SocketError.send("send: \(String.errno)")
             }
@@ -195,13 +201,13 @@ public extension SXConnectionSocket {
         self.`protocol` = `protocol`
         self.readBufsize = bufsize
         
-        self._read = { client throws -> Data? in
+        self.readHandler = { client, size throws -> Data? in
             return client.isBlocking ?
-                try client.recv_block() :
-                try client.recv_nonblock()
+                try client.recv_block(size: size) :
+                try client.recv_nonblock(size: size)
         }
         
-        self._write =  { (client: Socket & Writable, data: Data) throws -> () in
+        self.writeHandler =  { (client: Socket & Writable, data: Data) throws -> () in
             if send(client.sockfd, data.bytes, data.length, 0) == -1 {
                 throw SocketError.send("send: \(String.errno)")
             }
@@ -210,11 +216,11 @@ public extension SXConnectionSocket {
         
         #if __tls
             if tls {
-                self._read = { client_socket throws -> Data? in
-                    return try client_socket.tlsContext.read(size: 16 * 1024)
+                self.readHandler = { client_socket, _ throws -> Data? in
+                    return try (client_socket as! SXConnectionSocket).tlsContext.read(size: 16 * 1024)
                 }
                 
-                self._write = { client_socket, data throws in
+                self.writeHandler = { client_socket, data throws in
                     _ = try client_socket.write(data: data)
                 }
             }
@@ -257,13 +263,13 @@ public extension SXConnectionSocket {
         self.`protocol` = `protocol`
         self.readBufsize = bufsize
         
-        self._read = { client throws -> Data? in
+        self.readHandler = { client, size throws -> Data? in
             return client.isBlocking ?
-                try client.recv_block() :
-                try client.recv_nonblock()
+                try client.recv_block(size: size) :
+                try client.recv_nonblock(size: size)
         }
         
-        self._write =  { (client: Socket & Writable, data: Data) throws -> () in
+        self.writeHandler =  { (client: Socket & Writable, data: Data) throws -> () in
             if send(client.sockfd, data.bytes, data.length, 0) == -1 {
                 throw SocketError.send("send: \(String.errno)")
             }
@@ -272,15 +278,17 @@ public extension SXConnectionSocket {
         
         #if __tls
             if tls {
-                self._read = { client_socket throws -> Data? in
-                    return try client_socket.tlsContext.read(size: 16 * 1024)
+                self.readHandler = { client_socket, _ throws -> Data? in
+                    return try (client_socket as! SXConnectionSocket).tlsContext.read(size: 16 * 1024)
                 }
                 
-                self._write = { client_socket, data throws in
+                self.writeHandler = { client_socket, data throws in
                     _ = try client_socket.write(data: data)
                 }
             }
         #endif
+        
+        
         searchAddress: for address in addresses {
             switch address {
             case var .inet(addr):
@@ -318,13 +326,13 @@ public extension SXConnectionSocket {
         self.address = SXSocketAddress(address: ipv4, withDomain: .inet, port: port)
         self.readBufsize = bufsize
         
-        self._read = { client throws -> Data? in
+        self.readHandler = { client, size throws -> Data? in
             return client.isBlocking ?
-                try client.recv_block() :
-                try client.recv_nonblock()
+                try client.recv_block(size: size) :
+                try client.recv_nonblock(size: size)
         }
         
-        self._write =  { (client: Socket & Writable, data: Data) throws -> () in
+        self.writeHandler =  { (client: Socket & Writable, data: Data) throws -> () in
             if send(client.sockfd, data.bytes, data.length, 0) == -1 {
                 throw SocketError.send("send: \(String.errno)")
             }
@@ -348,13 +356,13 @@ public extension SXConnectionSocket {
         self.address = SXSocketAddress(address: ipv6, withDomain: .inet6, port: port)
         self.readBufsize = bufsize
         
-        self._read = { client throws -> Data? in
+        self.readHandler = { client, size throws -> Data? in
             return client.isBlocking ?
-                try client.recv_block() :
-                try client.recv_nonblock()
+                try client.recv_block(size: size) :
+                try client.recv_nonblock(size: size)
         }
         
-        self._write =  { (client: Socket & Writable, data: Data) throws -> () in
+        self.writeHandler =  { (client: Socket & Writable, data: Data) throws -> () in
             if send(client.sockfd, data.bytes, data.length, 0) == -1 {
                 throw SocketError.send("send: \(String.errno)")
             }
@@ -378,13 +386,13 @@ public extension SXConnectionSocket {
         self.address = SXSocketAddress(address: ipv4, withDomain: .inet, port: port)
         self.readBufsize = bufsize
         
-        self._read = { client throws -> Data? in
+        self.readHandler = { client, size throws -> Data? in
             return client.isBlocking ?
-                try client.recv_block() :
-                try client.recv_nonblock()
+                try client.recv_block(size: size) :
+                try client.recv_nonblock(size: size)
         }
         
-        self._write =  { (client: Socket & Writable, data: Data) throws -> () in
+        self.writeHandler =  { (client: Socket & Writable, data: Data) throws -> () in
             if send(client.sockfd, data.bytes, data.length, 0) == -1 {
                 throw SocketError.send("send: \(String.errno)")
             }
@@ -408,13 +416,13 @@ public extension SXConnectionSocket {
         self.address = SXSocketAddress(address: ipv6, withDomain: .inet6, port: port)
         self.readBufsize = bufsize
         
-        self._read = { client throws -> Data? in
+        self.readHandler = { client, size throws -> Data? in
             return client.isBlocking ?
-                try client.recv_block() :
-                try client.recv_nonblock()
+                try client.recv_block(size: size) :
+                try client.recv_nonblock(size: size)
         }
         
-        self._write =  { (client: Socket & Writable, data: Data) throws -> () in
+        self.writeHandler =  { (client: Socket & Writable, data: Data) throws -> () in
             if send(client.sockfd, data.bytes, data.length, 0) == -1 {
                 throw SocketError.send("send: \(String.errno)")
             }

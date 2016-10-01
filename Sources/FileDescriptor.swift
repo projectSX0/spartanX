@@ -43,8 +43,8 @@ public protocol UNIXFileDescriptor {
 }
 
 public protocol Readable {
-    var readBufsize: size_t { get set }
-    func read() throws -> Data?
+//    var readBufsize: size_t { get set }
+    func read(size: Int) throws -> Data?
     func done()
 }
 
@@ -54,8 +54,8 @@ public protocol Writable {
 }
 
 extension UNIXFileDescriptor where Self : Readable {
-    func read_block() throws -> Data? {
-        let size = self.readBufsize
+    func read_block(size: Int) throws -> Data? {
+//        let size = self.readBufsize
         
         var buffer = [UInt8](repeating: 0, count: size)
         var len = 0
@@ -77,8 +77,8 @@ extension UNIXFileDescriptor where Self : Readable {
         return Data(bytes: buffer, count: len)
     }
     
-    func read_nonblock() throws -> Data? {
-        let size = self.readBufsize
+    func read_nonblock(size: Int) throws -> Data? {
+//        let size = self.readBufsize
         
         var buffer = [UInt8](repeating: 0, count: size)
         var len = 0
