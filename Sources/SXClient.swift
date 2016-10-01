@@ -56,7 +56,7 @@ public struct SXClientSocket : ClientSocket {
     public var `protocol`: Int32
     
     public var address: SXSocketAddress?
-    public var readBufsize: size_t = 4096
+
     public var recvFlags: Int32 = 0
     public var sendFlags: Int32 = 0
     

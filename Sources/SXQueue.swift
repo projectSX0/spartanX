@@ -34,8 +34,9 @@
 import Glibc /* ioctl */
 import func CKit.mutablePointer
 #endif
+import struct Foundation.Data
 
-public class SXQueue: KqueueManagable {
+public class SXQueue: KqueueManagable, Writable {
     
     public var ident: Int32
     public var readAgent: Readable
@@ -53,13 +54,17 @@ public class SXQueue: KqueueManagable {
         SXKernelManager.default?.register(self)
     }
     
-    public func terminate() {
+    public func done() {
         self.readAgent.done()
         self.writeAgent.done()
         #if debug
         printd("connection of fd \(ident) is ended, \(#function): \(#file): \(#line)")
         #endif
         SXKernelManager.default?.unregister(ident: ident, of: .read)
+    }
+
+    public func write(data: Data) throws {
+        return try self.writeAgent.write(data: data)
     }
    
     public func runloop(_ ev: event) {
@@ -71,17 +76,15 @@ public class SXQueue: KqueueManagable {
             var availableDataSize: Int = 0
             _ = ioctl(ev.data.fd, UInt(FIONREAD), UnsafeMutableRawPointer(mutablePointer(of: &availableDataSize)))
             #endif
-            
-//            self.readAgent.readBufsize = availableDataSize
 
             if let data = try self.readAgent.read(size: availableDataSize) {
                 
                 if try !self.service.dataHandler(self, data) {
-                    return terminate()
+                    return done()
                 }
             
             } else {
-                return terminate()
+                return done()
             }
             
         } catch {
