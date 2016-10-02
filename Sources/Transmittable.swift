@@ -30,8 +30,21 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
+public struct SendMethods : OptionSet {
+    public typealias RawValue = UInt32
+    public var rawValue: UInt32
+    public init(rawValue: UInt32) {
+        self.rawValue = rawValue
+    }
+    
+    public static let send = SendMethods(rawValue: 0)
+    public static let sendfile = SendMethods(rawValue: 1)
+    public static let sendto = SendMethods(rawValue: 1 << 1)
+    public static let sendmsg = SendMethods(rawValue: 1 << 2)
+}
 public protocol Transmittable {
-    func send(to: Writable)
+    var sendOptions: SendMethods { get }
+    func send(with method: SendMethods, using socket: Socket & Writable)
 }
 
 
