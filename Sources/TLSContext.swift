@@ -57,7 +57,7 @@ public class SXTLSLayer :  SXStreamSocketService {
     public var dataHandler: (SXQueue, Data) throws -> Bool 
     public var errHandler: ((SXQueue, Error) -> ())?
     public var acceptedHandler: ((inout SXClientSocket) -> ())?
-    
+    public static var supportedMethods: SendMethods = SendMethods.send
     public var clientsMap = [Int32: TLSClient]()
     
     public init(service: SXService, tls: SXTLSContextInfo) throws {
@@ -85,7 +85,12 @@ public class SXTLSLayer :  SXStreamSocketService {
         
         self.context = try TLSServer(with: config)
 
-        self.dataHandler = service.dataHandler
+        self.dataHandler = {
+            queue, data throws -> Bool in
+            let _queue = queue
+            _queue.supportedMethods = SXTLSLayer.supportedMethods.intersection(queue.supportedMethods)
+            return try service.dataHandler(queue, data)
+        }
         
         self.errHandler = { queue, error in
             switch error {

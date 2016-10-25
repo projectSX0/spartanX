@@ -45,6 +45,7 @@ public protocol Socket : UNIXFileDescriptor {
     var domain: SocketDomains { get set }
     var type: SocketTypes { get set }
     var `protocol`: Int32 { get set }
+    func getfd() -> Int32
 }
 
 public protocol ServerSocket : Socket, Addressable {
@@ -61,6 +62,10 @@ public protocol ConnectionSocket : Socket, Addressable, Readable, Writable {
 }
 
 extension Socket {
+
+    public func getfd() -> Int32 {
+        return self.sockfd
+    }
     
     public var fileDescriptor: Int32 {
         return self.sockfd
@@ -149,7 +154,9 @@ extension Writable where Self : Socket {
         }
 
         var _sf_hdtr = sf_hdtr(headers: &hdvec, hdr_cnt: 1, trailers: nil, trl_cnt: 0)
-        if sendfile(fd, sockfd, 0, nil, &_sf_hdtr, 0) == -1 {
+            
+        if sendfile(fd, self.sockfd, 0, nil, &_sf_hdtr, 0) == -1 {
+            print(String.errno)
             throw SocketError.sendfile(String.errno)
         }
             
@@ -161,7 +168,30 @@ extension Writable where Self : Socket {
         sendfile(sockfd, fd, nil, try! FileStatus(fd: fd).size)
         setsockopt(sockfd, SOL_SOCKET, TCP_CORK, &yes, socklen_t(MemoryLayout<Int32>.size))
         #endif
-
+    }
+    
+    public func write(to sockfd: Int32, file fd: Int32, header: Data) throws {
+        #if os(FreeBSD) || os(OSX) || os(iOS) || os(tvOS) || os(watchOS)
+            var header = header
+            var hdvec = header.withUnsafeMutableBytes {
+                return iovec(iov_base: $0, iov_len: header.length)
+            }
+            
+            var _sf_hdtr = sf_hdtr(headers: &hdvec, hdr_cnt: 1, trailers: nil, trl_cnt: 0)
+            
+            if sendfile(fd, sockfd, 0, nil, &_sf_hdtr, 0) == -1 {
+                print(String.errno)
+                throw SocketError.sendfile(String.errno)
+            }
+            
+        #else
+            var yes: Int32 = 1
+            setsockopt(sockfd, SOL_SOCKET, TCP_CORK, &yes, socklen_t(MemoryLayout<Int32>.size))
+            yes = 0
+            try self.write(data: header)
+            sendfile(sockfd, fd, nil, try! FileStatus(fd: fd).size)
+            setsockopt(sockfd, SOL_SOCKET, TCP_CORK, &yes, socklen_t(MemoryLayout<Int32>.size))
+        #endif
     }
 }
 

@@ -39,6 +39,7 @@ import struct Foundation.Data
 //}
 
 public protocol SXService {
+    static var supportedMethods: SendMethods { get set }
     var dataHandler: (SXQueue, Data) throws -> Bool  { get set }
     var errHandler: ((SXQueue, Error) -> ())? { get set }
 }
@@ -52,7 +53,7 @@ open class SXConnectionService: SXService {
     open var errHandler: ((SXQueue, Error) -> ())?
     open var willTerminateHandler: ((SXQueue) -> ())?
     open var didTerminateHandler: ((SXQueue) -> ())?
-    
+    open static var supportedMethods: SendMethods = SendMethods(rawValue: 0)
     public init(handler: @escaping (SXQueue, Data) throws -> Bool) {
         self.dataHandler = handler
     }

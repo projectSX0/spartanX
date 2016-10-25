@@ -44,7 +44,7 @@ public struct SendMethods : OptionSet {
 }
 public protocol Transmittable {
     var sendOptions: SendMethods { get }
-    func send(with method: SendMethods, using socket: Socket & Writable)
+    func send(with method: SendMethods, using socket: Writable) throws
 }
 
 

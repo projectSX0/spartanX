@@ -101,6 +101,7 @@ public extension SXClientSocket {
     
     
     public func write(data: Data) throws {
+        
         try self.writeHandler(self, data)
     }
     
