@@ -1,6 +1,16 @@
 # spartanX
 
-spartanX is a socket library written in swift that so-far support ipv4, ipv6 and unix stream sockets. SpartanX is using a hybrid of event looping and multi-threading model that maximize the scale of connections without fall into callback hell and race condition.
+spartanX is a protocol oriented socket library written in swift that so-far support ipv4, ipv6 and unix stream sockets. SpartanX is using a hybrid of event looping and multi-threading model that maximize the scale of connections without fall into callback hell and race condition. Sockets in spartanX can be use as stand-alone component as well manage by SXKernel.
+
+spartanX currently support some features that no one has done in swift web framework.
+
+* A very special threading model of hybriding multi-threading and event-driven io with blocking socket that does not block any thread(see Threading Model).
+* sendfile() support with optional header (does not copy data to user-space from kernel)
+* Awesome SXSocketAddress that does things right.
+* ipv4, ipv6, unix domain socket
+* Making any arbinary object in swift to send tho socket by confirming to transmittable protocol
+* Oneshot connection socket 
+* Standalone DNS api 
 
 spartanX is build for server-side use with client-side component.
 
