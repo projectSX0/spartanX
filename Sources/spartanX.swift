@@ -70,8 +70,10 @@ public struct SXSocketConfiguation {
     }
 }
 
-public func printd(_ s: String) {
+
+public func debugLog(_ s: String) {
     #if debug
-    print(s)
+        print(s)
     #endif
 }
+

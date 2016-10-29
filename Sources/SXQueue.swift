@@ -42,7 +42,6 @@ public class SXQueue: KqueueManagable, Writable {
     public var readAgent: Readable
     public var writeAgent: Writable
     public var service: SXService
-    public var manager: SXKernel?
     public var supportedMethods: SendMethods = [.send, .sendfile, .sendmsg]
     
     public var userInfo = [String: Any]()
@@ -58,7 +57,7 @@ public class SXQueue: KqueueManagable, Writable {
     public func done() {
         self.readAgent.done()
         self.writeAgent.done()
-        printd("connection of fd \(ident) is ended, \(#function): \(#file): \(#line)")
+        debugLog("connection of fd \(ident) is ended, \(#function): \(#file): \(#line)")
         SXKernelManager.default?.unregister(ident: ident, of: .read)
     }
 
@@ -66,7 +65,7 @@ public class SXQueue: KqueueManagable, Writable {
         return try self.writeAgent.write(data: data)
     }
    
-    public func runloop(_ ev: event) {
+    public func runloop(manager: SXKernel, _ ev: event) {
         
         do {
             #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(FreeBSD) || os(PS4)
@@ -91,8 +90,8 @@ public class SXQueue: KqueueManagable, Writable {
         }
         
         #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(FreeBSD) || os(PS4)
-        self.manager?.thread.exec {
-            self.manager?.register(self)
+        manager.thread.exec {
+            manager.register(self)
         }
         #endif
     }

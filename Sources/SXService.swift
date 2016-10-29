@@ -33,11 +33,6 @@
 
 import struct Foundation.Data
 
-//public protocol SXService {
-//    var dataHandler: (SXQueue, Data) -> Bool { get set }
-//    var errHandler: ((SXQueue, Error) -> ())? { get set }
-//}
-
 public protocol SXService {
     static var supportedMethods: SendMethods { get set }
     var dataHandler: (SXQueue, Data) throws -> Bool  { get set }

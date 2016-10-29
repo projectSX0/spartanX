@@ -38,7 +38,7 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
     public var address: SXSocketAddress?
     public var port: in_port_t?
     
-    public var manager: SXKernel?
+//    public var manager: SXKernel?
     
     public var sockfd: Int32
     public var domain: SocketDomains
@@ -151,7 +151,7 @@ public extension SXServerSocket {
         return try self._accept(self)
     }
     
-    public func runloop(_ ev: event) {
+    public func runloop(manager: SXKernel, _ ev: event) {
         do {
             if self.type == .stream {
                 let client = try self.accept()
@@ -163,8 +163,8 @@ public extension SXServerSocket {
         }
         
         #if os(FreeBSD) || os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(PS4)
-            self.manager?.thread.exec {
-                self.manager?.register(self)
+            manager.thread.exec {
+                manager.register(self)
             }
         #endif
     }

@@ -45,11 +45,10 @@ public struct ClientFunctions<ClientSocketType> {
 }
 
 public struct SXClientSocket : ClientSocket {
-//    
+    
     internal var readHandler: (SXClientSocket, Int) throws -> Data?
     internal var writeHandler: (SXClientSocket, Data) throws -> ()
-//    internal var _clean: ((SXClientSocket) -> ())?
-//    
+
     public var sockfd: Int32
     public var domain: SocketDomains
     public var type: SocketTypes
@@ -110,7 +109,6 @@ public extension SXClientSocket {
     }
     
     public func done() {
-//        self._clean?(self)
         close(self.sockfd)
     }
 }

@@ -72,7 +72,7 @@ public struct SXConnectionSocket: ConnectionSocket
     public var readBufsize: size_t
     
     var handler: ((Data?) -> Bool)?
-    public var manager: SXKernel?
+//    public var manager: SXKernel?
     
     public var errhandler: ((Error) -> Bool)?
     
@@ -81,7 +81,7 @@ public struct SXConnectionSocket: ConnectionSocket
 }
 
 //MARK: - runtime
-extension SXConnectionSocket: KqueueManagable {
+extension SXConnectionSocket {
     
     @inline(__always)
     public func write(data: Data) throws {
@@ -122,7 +122,7 @@ extension SXConnectionSocket: KqueueManagable {
         _ = ioctl(sockfd, UInt(FIONREAD), UnsafeMutableRawPointer(mutablePointer(of: &size)))
         return try read(size: size)
     }
-//
+
     @inline(__always)
     public func read(size: Int) throws -> Data? {
         return self.isBlocking ?
@@ -130,34 +130,39 @@ extension SXConnectionSocket: KqueueManagable {
             try self.read_nonblock(size: size)
     }
     
-    public func runloop(_ ev: event) {
+    public func done() {
+        close(self.sockfd)
+    }
+}
+
+extension SXConnectionSocket: KqueueManagable {
+    public func runloop(manager: SXKernel, _ ev: event) {
+        
+        func kdone() {
+            manager.remove(ident: self.ident, for: .read)
+            self.done()
+        }
+        
         do {
             #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(FreeBSD) || os(PS4)
-            let payload = try self.read(size: ev.data)
+                let payload = try self.read(size: ev.data)
             #else
-            var size: Int = 0
-            _ = ioctl(ev.data.fd, UInt(FIONREAD), UnsafeMutableRawPointer(mutablePointer(of: &size)))
-            let payload = try self.read()
+                var size: Int = 0
+                _ = ioctl(ev.data.fd, UInt(FIONREAD), UnsafeMutableRawPointer(mutablePointer(of: &size)))
+                let payload = try self.read()
             #endif
             if handler?(payload) == false {
-                done()
+                kdone()
             }
         } catch {
             if let errh = errhandler {
                 if !errh(error) {
-                    done()
+                    kdone()
                 }
             } else {
-                done()
+                kdone()
             }
         }
-    }
-    
-    public func done() {
-        if let manager = self.manager {
-            manager.remove(ident: self.ident, for: .read)
-        }
-        close(self.sockfd)
     }
 }
 
