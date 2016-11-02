@@ -5,7 +5,7 @@
 //  Created by yuuji on 11/1/16.
 //
 //
-
+/*
 #if os(OSX) || os(iOS) || os(tvOS) || os(watchOS)
 import Darwin
 #else
@@ -18,4 +18,4 @@ public final class SXDatagramSocket : Socket {
     
 }
 
-
+*/
