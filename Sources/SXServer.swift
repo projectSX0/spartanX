@@ -35,10 +35,10 @@ import FoundationPlus
 
 open class SXServerSocket : ServerSocket, KqueueManagable {
     
+    public var hashValue: Int
+    
     public var address: SXSocketAddress?
     public var port: in_port_t?
-    
-//    public var manager: SXKernel?
     
     public var sockfd: Int32
     public var domain: SocketDomains
@@ -63,11 +63,14 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
         self.backlog = conf.backlog
         self._accept = accept
         
+        
         self.sockfd = socket(Int32(domain.rawValue), type.rawValue, `protocol`)
         
         if sockfd == -1 {
             throw SocketError.socket(String.errno)
         }
+        
+        self.hashValue = Int(self.sockfd) * time(nil)
         
         if self.type == .stream {
             try self.bind()

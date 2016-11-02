@@ -35,8 +35,9 @@ import Glibc /* ioctl */
 import func CKit.mutablePointer
 #endif
 import struct Foundation.Data
+import func Foundation.time
 
-public class SXQueue: KqueueManagable, Writable {
+open class SXQueue: KqueueManagable, Writable, Hashable {
     
     public var ident: Int32
     public var readAgent: Readable
@@ -46,11 +47,18 @@ public class SXQueue: KqueueManagable, Writable {
     
     public var userInfo = [String: Any]()
     
+    public var hashValue: Int
+    
+    public var sectionToken: Int {
+        return hashValue
+    }
+    
     public init(fd: Int32, readFrom r: Readable, writeTo w: Writable, with service: SXService) throws {
         self.readAgent = r
         self.writeAgent = w
         self.service = service
         self.ident = fd
+        self.hashValue = Int(self.ident) * time(nil)
         SXKernelManager.default?.register(self)
     }
     
@@ -95,4 +103,8 @@ public class SXQueue: KqueueManagable, Writable {
         }
         #endif
     }
+}
+
+public func ==(lhs: SXQueue, rhs: SXQueue) -> Bool {
+    return lhs.hashValue == rhs.hashValue
 }

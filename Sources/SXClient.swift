@@ -46,8 +46,8 @@ public struct ClientFunctions<ClientSocketType> {
 
 public struct SXClientSocket : ClientSocket {
     
-    internal var readHandler: (SXClientSocket, Int) throws -> Data?
-    internal var writeHandler: (SXClientSocket, Data) throws -> ()
+    internal var readMethod: (SXClientSocket, Int) throws -> Data?
+    internal var writeMethod: (SXClientSocket, Data) throws -> ()
 
     public var sockfd: Int32
     public var domain: SocketDomains
@@ -81,8 +81,8 @@ public struct SXClientSocket : ClientSocket {
         
         self.type = sockinfo.type
         self.`protocol` = sockinfo.`protocol`
-        self.readHandler = functions.read
-        self.writeHandler = functions.write
+        self.readMethod = functions.read
+        self.writeMethod = functions.write
     }
 }
 
@@ -101,11 +101,11 @@ public extension SXClientSocket {
     
     public func write(data: Data) throws {
         
-        try self.writeHandler(self, data)
+        try self.writeMethod(self, data)
     }
     
     public func read(size: Int) throws -> Data? {
-        return try self.readHandler(self, size)
+        return try self.readMethod(self, size)
     }
     
     public func done() {

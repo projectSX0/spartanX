@@ -37,14 +37,15 @@ import Glibc
 #endif
 
 import struct Foundation.Data
+import func CKit.mutablePointer
 
 public protocol UNIXFileDescriptor {
     var fileDescriptor: Int32 { get }
 }
 
 public protocol Readable {
-//    var readBufsize: size_t { get set }
     func read(size: Int) throws -> Data?
+    var availableBytesa: Int { get }
     func done()
 }
 
@@ -54,8 +55,17 @@ public protocol Writable {
 }
 
 extension UNIXFileDescriptor where Self : Readable {
+    
+    public var availableBytesa: Int {
+        var ret = 0
+        #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+        let FIONREAD = 1074030207
+        #endif
+        _ = ioctl(self.fileDescriptor, UInt(FIONREAD), UnsafeMutableRawPointer(mutablePointer(of: &ret)))
+        return ret
+    }
+    
     func read_block(size: Int) throws -> Data? {
-//        let size = self.readBufsize
         
         var buffer = [UInt8](repeating: 0, count: size)
         var len = 0
@@ -78,7 +88,6 @@ extension UNIXFileDescriptor where Self : Readable {
     }
     
     func read_nonblock(size: Int) throws -> Data? {
-//        let size = self.readBufsize
         
         var buffer = [UInt8](repeating: 0, count: size)
         var len = 0

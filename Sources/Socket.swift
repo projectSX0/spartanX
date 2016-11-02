@@ -108,7 +108,6 @@ extension Readable where Self : Socket {
     }
     
     func recv_nonblock(size: Int, r_flags: Int32 = 0) throws -> Data? {
-//        let size = self.readBufsize
         
         var buffer = [UInt8](repeating: 0, count: size)
         var len = 0

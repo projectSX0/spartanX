@@ -72,7 +72,7 @@ public struct SXConnectionSocket: ConnectionSocket
     public var readBufsize: size_t
     
     var handler: ((Data?) -> Bool)?
-//    public var manager: SXKernel?
+    public var hashValue: Int
     
     public var errhandler: ((Error) -> Bool)?
     
@@ -136,6 +136,7 @@ extension SXConnectionSocket {
 }
 
 extension SXConnectionSocket: KqueueManagable {
+
     public func runloop(manager: SXKernel, _ ev: event) {
         
         func kdone() {
@@ -192,6 +193,7 @@ public extension SXConnectionSocket {
         self.`protocol` = `protocol`
         self.readBufsize = bufsize
         self.sockfd = socket(AF_UNIX, self.type.rawValue, `protocol`)
+        self.hashValue = Int(sockfd) * time(nil)
         self.address = SXSocketAddress(address: unixDomainName, withDomain: .unix, port: 0)
         switch self.address! {
         case var .unix(addr):
@@ -264,6 +266,7 @@ public extension SXConnectionSocket {
         }
         
         self.sockfd = fd
+        self.hashValue = Int(sockfd) * time(nil)
     }
     
     
@@ -328,6 +331,7 @@ public extension SXConnectionSocket {
         }
         
         self.sockfd = fd
+        self.hashValue = Int(sockfd) * time(nil)
     }
     
     public init(ipv4: String, port: in_port_t, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
@@ -337,6 +341,8 @@ public extension SXConnectionSocket {
         self.protocol = `protocol`
         self.address = SXSocketAddress(address: ipv4, withDomain: .inet, port: port)
         self.readBufsize = bufsize
+        
+        self.hashValue = Int(sockfd) * time(nil)
         
         self.readHandler = { client, size throws -> Data? in
             return client.isBlocking ?
@@ -368,6 +374,8 @@ public extension SXConnectionSocket {
         self.address = SXSocketAddress(address: ipv6, withDomain: .inet6, port: port)
         self.readBufsize = bufsize
         
+        self.hashValue = Int(sockfd) * time(nil)
+        
         self.readHandler = { client, size throws -> Data? in
             return client.isBlocking ?
                 try client.recv_block(size: size) :
@@ -398,6 +406,8 @@ public extension SXConnectionSocket {
         self.address = SXSocketAddress(address: ipv4, withDomain: .inet, port: port)
         self.readBufsize = bufsize
         
+        self.hashValue = Int(sockfd) * time(nil)
+        
         self.readHandler = { client, size throws -> Data? in
             return client.isBlocking ?
                 try client.recv_block(size: size) :
@@ -427,6 +437,8 @@ public extension SXConnectionSocket {
         self.protocol = `protocol`
         self.address = SXSocketAddress(address: ipv6, withDomain: .inet6, port: port)
         self.readBufsize = bufsize
+        
+        self.hashValue = Int(sockfd) * time(nil)
         
         self.readHandler = { client, size throws -> Data? in
             return client.isBlocking ?
