@@ -28,6 +28,7 @@ For example, this following defines a very simple service that simply ping back 
 
 ```swift
 final class Foo: SXService {
+  static var supportedMethods = [.send] // required by protocol
   var dataHandler: (SXQueue, Data) throws -> Bool // required by protocol
   var errHandler: ((SXQueue, Error) -> ())? // required by protocol
   init() {
