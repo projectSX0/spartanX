@@ -14,6 +14,59 @@ spartanX currently support some features that no one has done in swift web frame
 
 spartanX is build for server-side use with client-side component.
 
+# Usage (Using Built-in event loop)
+
+spartanX is written for low-level operations and we believe in the philosophy that you should in control of everything. Therefore, we will not initialize anything implicitly, we believe you have the right to know what your chose of framework is doing.
+
+To start a server, first you need to define a service, you should always define your service as class if possible, a service has following characteristics:
+
+* Provide general handlers for connected socket.
+* Retain session info if necessary
+* Usually has lifetime as long as your application.
+
+For example, this following defines a very simple service that simply ping back "hi"
+
+```swift
+final class Foo: SXService {
+  static var supportedMethods = [.send] // required by protocol
+  var dataHandler: (SXQueue, Data) throws -> Bool // required by protocol
+  var errHandler: ((SXQueue, Error) -> ())? // required by protocol
+  init() {
+      self.dataHandler = { (queue, data) throws -> Bool in
+          print(String(data: data, encoding: .ascii))
+          queue.write("hi".data(using: .ascii)!) // write to queue
+          return true // return false implies closing the connection
+      }
+  }
+}
+```
+
+Now we need an instance of our service and an entry point
+
+```swift
+let service = Foo()
+guard let serverSocket = try? SXServerSocket.tcpIpv4(service: service, port: 8080) else {
+    print("something wrong when creating server socket")
+    exit(1)
+}
+```
+
+Recall spartanX socket can use alone and use with built-in event loop, in this example, we are going to use the default event loop.
+
+```swift
+SXKernelManager.initializeDefault() // This initialze the default event loop
+SXKernelManager.default!.manage(serverSocket, setup: nil) // This basically say: "Here is my socket, manage it"
+```
+
+And don't forget not to let the application exit.
+```swift
+dispatchMain()
+```
+
+It seems a lot of work because spartanX is a relativly low level library. If you want some building blocks or something ready-to-go, checkout [SXF97](https://github.com/projectSX0/SXF97) and [SML](https://github.com/projectSX0/SML).
+
+Also checkout a Demo on how to use SML: [SMLDemo](https://github.com/michael-yuji/SMLDemo)
+
 # Threading Model
 
 SpartanX model each server-thread as a "Kernel", each kernel is running its own kqueue[FreeBSD/OSX]/epoll[Linux]. A central manager is reponse for dispatch a new connection to different available kernels to take advantage of multi-core system. Since once connection is added to the Kernel it will handle by the kernel using event-looping so it guarantees that your connection will Always synchronized.
