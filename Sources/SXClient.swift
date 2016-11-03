@@ -46,8 +46,8 @@ public struct ClientFunctions<ClientSocketType> {
 
 public struct SXClientSocket : ClientSocket {
     
-    internal var readMethod: (SXClientSocket, Int) throws -> Data?
-    internal var writeMethod: (SXClientSocket, Data) throws -> ()
+    public var readMethod: (SXClientSocket, Int) throws -> Data?
+    public var writeMethod: (SXClientSocket, Data) throws -> ()
 
     public var sockfd: Int32
     public var domain: SocketDomains
