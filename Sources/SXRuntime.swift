@@ -34,19 +34,19 @@ import struct Foundation.Data
 import func CKit.pointer
 
 #if os(Linux)
-import spartanXLinux // epoll
+    import spartanXLinux // epoll
 #endif
 
 #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-import Darwin
+    import Darwin
 #else
-import Glibc
+    import Glibc
 #endif
 
 #if os(Linux)
-public typealias event = epoll_event
+    public typealias event = epoll_event
 #else
-public typealias event = Darwin.kevent
+    public typealias event = Darwin.kevent
 #endif
 
 
@@ -62,7 +62,7 @@ public protocol KqueueManagable {
 public struct SXKernelManager {
     public static var `default`: SXKernelManager?
     var kernels = [SXKernel]()
-    var map = [Int : SXKernel]()
+    var map = [Int32 : SXKernel]()
 }
 
 public extension SXKernelManager {
@@ -76,30 +76,30 @@ public extension SXKernelManager {
         setup?(&target)
         self.register(target)
     }
-
+    
     @inline(__always)
     internal mutating func register(_ queue: KqueueManagable) {
         //debugLog("registering \(queue.ident): \(#function): \(#file): \(#line)")
         let _leastBusyKernel = leastBusyKernel()
         //map[queue.ident] = _leastBusyKernel
-        map[queue.hashValue] = _leastBusyKernel
+        map[queue.ident] = _leastBusyKernel
         _leastBusyKernel?.register(queue)
         //debugLog("returns: registering \(queue.ident): \(#function): \(#file): \(#line)")
     }
     
     internal mutating func unregister(ident: Int32, of filter: SXKernel.Filter) {
         //debugLog("unregistering \(ident): \(#function): \(#file): \(#line)")
-        let kernel = map[Int(ident)]
+        let kernel = map[ident]
         kernel?.remove(ident: ident, for: filter)
         //debugLog("returns: unregistering \(ident): \(#function): \(#file): \(#line)")
-        map[Int(ident)] = nil
+        map[ident] = nil
     }
     
     @inline(__always)
     func leastBusyKernel() -> SXKernel? {
         return kernels.sorted {
             $0.queues.count < $1.queues.count
-        }.first
+            }.first
     }
 }
 
@@ -119,9 +119,9 @@ public final class SXKernel {
     var kq: Int32
     
     var events: [event]
-
+    
     // user queues
-    var queues: [Int: KqueueManagable]
+    var queues: [Int32 : KqueueManagable]
     
     // events count
     var count = 0
@@ -142,17 +142,17 @@ public final class SXKernel {
         
         fileprivate var value: ev_raw_t {
             #if os(Linux)
-            switch self {
-            case .read: return EPOLLIN.rawValue
-            case .write: return EPOLLOUT.rawValue
-            case .vnode: return EPOLLOUT.rawValue | EPOLLIN.rawValue | EPOLLET.rawValue
-            }
+                switch self {
+                case .read: return EPOLLIN.rawValue
+                case .write: return EPOLLOUT.rawValue
+                case .vnode: return EPOLLOUT.rawValue | EPOLLIN.rawValue | EPOLLET.rawValue
+                }
             #else
-            switch self {
-            case .read: return Int16(EVFILT_READ)
-            case .write: return Int16(EVFILT_WRITE)
-            case .vnode: return Int16(EVFILT_VNODE)
-            }
+                switch self {
+                case .read: return Int16(EVFILT_READ)
+                case .write: return Int16(EVFILT_WRITE)
+                case .vnode: return Int16(EVFILT_VNODE)
+                }
             #endif
         }
         
@@ -170,9 +170,9 @@ public final class SXKernel {
         mutex = pthread_mutex_t()
         self.queues = [:]
         #if os(Linux)
-        kq = epoll_create1(0)
+            kq = epoll_create1(0)
         #else
-        kq = kqueue()
+            kq = kqueue()
         #endif
         self.events = [event](repeating: event(), count: events_count)
         pthread_mutex_init(&mutex, nil)
@@ -219,9 +219,9 @@ extension SXKernel {
         
         //debugLog("event_waiting: \(#function): \(#file): \(#line)")
         #if os(Linux)
-        let nev = epoll_wait(self.kq, &self.events, Int32(self.events.count), -1)
+            let nev = epoll_wait(self.kq, &self.events, Int32(self.events.count), -1)
         #else
-        let nev = kevent(self.kq, nil, 0, &self.events, Int32(self.events.count), nil)
+            let nev = kevent(self.kq, nil, 0, &self.events, Int32(self.events.count), nil)
         #endif
         //debugLog("event_found_active: fd_count: \(nev): \(#function): \(#file): \(#line)")
         
@@ -235,12 +235,16 @@ extension SXKernel {
             kqueue_end()
         }
         
+        if nev == -1 {
+            perror("kqueue")
+        }
+        
         for i in 0..<Int(nev) {
             let event = self.events[i]
             #if os(Linux)
-            let queue = self.queues[Int(event.data.fd)]
+                let queue = self.queues[Int32(event.data.fd)]
             #else
-            let queue = self.queues[Int(event.ident)]
+                let queue = self.queues[Int32(event.ident)]
             #endif
             
             //#if os(Linux)
@@ -275,22 +279,25 @@ extension SXKernel {
     }
     
     func register(_ queue: KqueueManagable, for kind: Filter = .read) {
+        
         withMutex {
-            self.queues[queue.hashValue] = queue
+            self.queues[queue.ident] = queue
+            
             #if os(Linux)
-            var ev = epoll_event()
-            ev.events = kind.value;
-            ev.data.fd = queue.ident
-            epoll_ctl(kq, EPOLL_CTL_ADD, queue.ident, &ev)
+                var ev = epoll_event()
+                ev.events = kind.value;
+                ev.data.fd = queue.ident
+                epoll_ctl(kq, EPOLL_CTL_ADD, queue.ident, &ev)
             #else
-            var k = event(ident: UInt(queue.ident),
-                          filter: kind.value,
-                          flags: UInt16(EV_ADD | EV_ENABLE | EV_ONESHOT),
-                          fflags: 0, data: 0,
-                          udata: nil)
-            kevent(kq, &k, 1, nil, 0, nil)
+                
+                var k = event(ident: UInt(queue.ident),
+                              filter: kind.value,
+                              flags: UInt16(EV_ADD | EV_ENABLE | EV_ONESHOT),
+                              fflags: 0, data: 0,
+                              udata: nil)
+                kevent(kq, &k, 1, nil, 0, nil)
             #endif
-            //debugLog("\(#function): \(#file): \(#line)")
+            debugLog("\(#function): \(#file): \(#line)")
             count += 1
         }
         
@@ -298,31 +305,31 @@ extension SXKernel {
             activate()
         }
         
-        //debugLog("returned: \(#function): \(#file): \(#line)")
+        debugLog("returned: \(#function): \(#file): \(#line)")
     }
     
     func remove(ident: Int32, for filter: Filter) {
         withMutex {
-            self.queues[Int(ident)] = nil
+            self.queues[ident] = nil
             //#if debug
             //print("\(#function): \(#file): \(#line)")
             //#endif
             #if os(Linux)
-            var ev = epoll_event()
-            ev.events = filter.value;
-            ev.data.fd = ident
-            epoll_ctl(kq, EPOLL_CTL_DEL, ident, &ev)
+                var ev = epoll_event()
+                ev.events = filter.value;
+                ev.data.fd = ident
+                epoll_ctl(kq, EPOLL_CTL_DEL, ident, &ev)
             #else
-            var k = event(ident: UInt(ident),
-                            filter: filter.value,
-                            flags: UInt16(EV_DELETE | EV_DISABLE | EV_RECEIPT),
-                            fflags: 0,
-                            data: 0,
-                            udata: nil)
-            kevent(kq, &k, 1, nil, 0, nil)
+                var k = event(ident: UInt(ident),
+                              filter: filter.value,
+                              flags: UInt16(EV_DELETE | EV_DISABLE | EV_RECEIPT),
+                              fflags: 0,
+                              data: 0,
+                              udata: nil)
+                kevent(kq, &k, 1, nil, 0, nil)
             #endif
             count -= 1
         }
-       // debugLog("returned: \(#function): \(#file): \(#line)")
+        // debugLog("returned: \(#function): \(#file): \(#line)")
     }
 }
