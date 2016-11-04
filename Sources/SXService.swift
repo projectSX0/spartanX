@@ -35,8 +35,8 @@ import struct Foundation.Data
 
 public protocol SXService {
     var supportingMethods: SendMethods { get set }
-    func handling(data: Data, for connection: SXQueue) throws -> Bool
-    func received(exception: Error, on connection: SXQueue)
+    func recevied(data: Data, for connection: SXQueue) throws -> Bool
+    func exceptionRaised(_ exception: Error, on connection: SXQueue)
 }
 
 public protocol SXStreamService {
@@ -59,7 +59,10 @@ open class SXConnectionService: SXStreamService {
     open func connectionDidTerminate(_ connection: SXQueue) {}
     open func connectionWillTerminate(_ connection: SXQueue) {}
     open func accepting(socket: inout SXClientSocket) {}
-    open func handling(data: Data, for connection: SXQueue) throws -> Bool {
+    
+    open func exceptionRasied(_ exception: Error, on connection: SXQueue) {}
+    
+    open func recevied(data: Data, for connection: SXQueue) throws -> Bool {
         return try self.dataHandler(connection, data)
     }
     
