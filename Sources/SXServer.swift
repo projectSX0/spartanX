@@ -63,7 +63,6 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
         self.backlog = conf.backlog
         self._accept = accept
         
-        
         self.sockfd = socket(Int32(domain.rawValue), type.rawValue, `protocol`)
         
         if sockfd == -1 {
@@ -78,11 +77,11 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
         }
     }
     
-    public static func tcpIpv4(service: SXStreamSocketService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
+    public static func tcpIpv4(service: SXStreamService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
         
         let conf = SXSocketConfiguation(domain: .inet, type: .stream, port: port, backlog: backlog, using: 0)
         let fns = SXClientSocket.standardIOHandlers
-        return try SXServerSocket(service: service, type: .stream, conf: conf) {
+        return try SXServerSocket(service: service as! SXService, type: .stream, conf: conf) {
                         (server: SXServerSocket) throws -> SXClientSocket in
         
                         var addr = sockaddr()
@@ -93,16 +92,16 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
                                                          addrinfo: (addr: addr, len: socklen),
                                                          sockinfo: (type: conf.type, protocol: conf.`protocol`),
                                                          functions: fns)
-                        service.acceptedHandler?(&client)
+                        service.accepting(socket: &client)
                         return client
                     }
     }
     
-    public static func tcpIpv6(service: SXStreamSocketService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
+    public static func tcpIpv6(service: SXStreamService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
         
         let conf = SXSocketConfiguation(domain: .inet6, type: .stream, port: port, backlog: backlog, using: 0)
         let fns = SXClientSocket.standardIOHandlers
-        return try SXServerSocket(service: service, type: .stream, conf: conf) {
+        return try SXServerSocket(service: service as! SXService, type: .stream, conf: conf) {
             (server: SXServerSocket) throws -> SXClientSocket in
             
             var addr = sockaddr()
@@ -113,7 +112,7 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
                                              addrinfo: (addr: addr, len: socklen),
                                              sockinfo: (type: conf.type, protocol: conf.`protocol`),
                                              functions: fns)
-            service.acceptedHandler?(&client)
+            service.accepting(socket: &client)
             return client
         }
     }

@@ -85,7 +85,7 @@ open class SXQueue: KqueueManagable, Writable, Hashable {
 
             if let data = try self.readAgent.read(size: availableDataSize) {
                 
-                if try !self.service.dataHandler(self, data) {
+                if try !self.service.handling(data: data, for: self) {
                     return done()
                 }
             
@@ -94,7 +94,7 @@ open class SXQueue: KqueueManagable, Writable, Hashable {
             }
             
         } catch {
-            self.service.errHandler?(self, error)
+            self.service.received(exception: error, on: self)
         }
         
         #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(FreeBSD) || os(PS4)
