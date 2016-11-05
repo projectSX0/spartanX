@@ -85,7 +85,7 @@ open class SXQueue: KqueueManagable, Writable, Hashable {
 
             if let data = try self.readAgent.read(size: availableDataSize) {
                 
-                if try !self.service.recevied(data: data, for: self) {
+                if try !self.service.recevied(data: data, from: self) {
                     return done()
                 }
             
