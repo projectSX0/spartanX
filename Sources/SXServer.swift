@@ -81,7 +81,7 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
         
         let conf = SXSocketConfiguation(domain: .inet, type: .stream, port: port, backlog: backlog, using: 0)
         let fns = SXClientSocket.standardIOHandlers
-        return try SXServerSocket(service: service as! SXService, type: .stream, conf: conf) {
+        return try SXServerSocket(service: service, type: .stream, conf: conf) {
                         (server: SXServerSocket) throws -> SXClientSocket in
         
                         var addr = sockaddr()
@@ -101,7 +101,7 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
         
         let conf = SXSocketConfiguation(domain: .inet6, type: .stream, port: port, backlog: backlog, using: 0)
         let fns = SXClientSocket.standardIOHandlers
-        return try SXServerSocket(service: service as! SXService, type: .stream, conf: conf) {
+        return try SXServerSocket(service: service, type: .stream, conf: conf) {
             (server: SXServerSocket) throws -> SXClientSocket in
             
             var addr = sockaddr()
@@ -157,7 +157,10 @@ public extension SXServerSocket {
         do {
             if self.type == .stream {
                 let client = try self.accept()
-                _ = try SXQueue(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
+                let queue = try SXQueue(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
+                if let service = service as? SXStreamService {
+                    try service.accepted(connection: queue)
+                }
             }
         } catch {
             //FIXME: use real handler

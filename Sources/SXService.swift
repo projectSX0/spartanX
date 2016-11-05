@@ -41,18 +41,16 @@ public protocol SXService {
 
 public protocol SXStreamService : SXService {
     func accepting(socket: inout SXClientSocket)
+    func accepted(connection: SXQueue)
     func connectionWillTerminate(_ connection: SXQueue)
     func connectionDidTerminate(_ connection: SXQueue)
 }
 
-open class SXConnectionService: SXStreamService {
+open class SXConnectionService: SXService {
     
     open func exceptionRaised(_ exception: Error, on connection: SXQueue) {}
 
     open var supportingMethods: SendMethods = [.send, .sendfile, .sendto]
-    open func connectionDidTerminate(_ connection: SXQueue) {}
-    open func connectionWillTerminate(_ connection: SXQueue) {}
-    open func accepting(socket: inout SXClientSocket) {}
     
     open func recevied(data: Data, from connection: SXQueue) throws -> Bool {
         return try self.dataHandler(data, connection)
