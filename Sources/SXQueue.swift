@@ -63,10 +63,12 @@ open class SXQueue: KqueueManagable, Writable, Hashable {
     }
     
     public func done() {
+        (service as? SXStreamService)?.connectionWillTerminate(self)
         self.readAgent.done()
         self.writeAgent.done()
         debugLog("connection of fd \(ident) is ended, \(#function): \(#file): \(#line)")
         SXKernelManager.default?.unregister(ident: ident, of: .read)
+        (service as? SXStreamService)?.connectionDidTerminate(self)
     }
 
     public func write(data: Data) throws {
@@ -85,7 +87,7 @@ open class SXQueue: KqueueManagable, Writable, Hashable {
 
             if let data = try self.readAgent.read(size: availableDataSize) {
                 
-                if try !self.service.recevied(data: data, from: self) {
+                if try !self.service.received(data: data, from: self) {
                     return done()
                 }
             

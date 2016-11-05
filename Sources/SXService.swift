@@ -35,7 +35,7 @@ import struct Foundation.Data
 
 public protocol SXService {
     var supportingMethods: SendMethods { get set }
-    func recevied(data: Data, from connection: SXQueue) throws -> Bool
+    func received(data: Data, from connection: SXQueue) throws -> Bool
     func exceptionRaised(_ exception: Error, on connection: SXQueue)
 }
 
@@ -51,7 +51,7 @@ open class SXConnectionService: SXService {
 
     open var supportingMethods: SendMethods = [.send, .sendfile, .sendto]
     
-    open func recevied(data: Data, from connection: SXQueue) throws -> Bool {
+    open func received(data: Data, from connection: SXQueue) throws -> Bool {
         return try self.dataHandler(data, connection)
     }
     
