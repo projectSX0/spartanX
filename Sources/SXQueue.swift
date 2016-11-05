@@ -96,7 +96,9 @@ open class SXQueue: KqueueManagable, Writable, Hashable {
             }
             
         } catch {
-            self.service.exceptionRaised(error, on: self)
+            if !self.service.exceptionRaised(error, on: self) {
+                return done()
+            }
         }
         
         #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(FreeBSD) || os(PS4)

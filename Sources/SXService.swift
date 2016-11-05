@@ -33,10 +33,15 @@
 
 import struct Foundation.Data
 
+public typealias ShouldProceed = Bool
+
+public let YES = true
+public let NO = false
+
 public protocol SXService {
     var supportingMethods: SendMethods { get set }
-    func received(data: Data, from connection: SXQueue) throws -> Bool
-    func exceptionRaised(_ exception: Error, on connection: SXQueue)
+    func received(data: Data, from connection: SXQueue) throws -> ShouldProceed
+    func exceptionRaised(_ exception: Error, on connection: SXQueue) -> ShouldProceed
 }
 
 public protocol SXStreamService : SXService {
@@ -47,17 +52,17 @@ public protocol SXStreamService : SXService {
 
 open class SXConnectionService: SXService {
     
-    open func exceptionRaised(_ exception: Error, on connection: SXQueue) {}
+    open func exceptionRaised(_ exception: Error, on connection: SXQueue) -> ShouldProceed { return false }
 
     open var supportingMethods: SendMethods = [.send, .sendfile, .sendto]
     
-    open func received(data: Data, from connection: SXQueue) throws -> Bool {
+    open func received(data: Data, from connection: SXQueue) throws -> ShouldProceed {
         return try self.dataHandler(data, connection)
     }
     
-    open var dataHandler: (Data, SXQueue) throws -> Bool
+    open var dataHandler: (Data, SXQueue) throws -> ShouldProceed
     
-    public init(handler: @escaping (Data, SXQueue) throws -> Bool) {
+    public init(handler: @escaping (Data, SXQueue) throws -> ShouldProceed) {
         self.dataHandler = handler
     }
 }
