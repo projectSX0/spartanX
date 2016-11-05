@@ -92,7 +92,6 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
                                                          addrinfo: (addr: addr, len: socklen),
                                                          sockinfo: (type: conf.type, protocol: conf.`protocol`),
                                                          functions: fns)
-                        service.accepting(socket: &client)
                         return client
                     }
     }
@@ -112,7 +111,6 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
                                              addrinfo: (addr: addr, len: socklen),
                                              sockinfo: (type: conf.type, protocol: conf.`protocol`),
                                              functions: fns)
-            service.accepting(socket: &client)
             return client
         }
     }
@@ -159,7 +157,9 @@ public extension SXServerSocket {
                 let client = try self.accept()
                 let queue = try SXQueue(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
                 if let service = service as? SXStreamService {
-                    try service.accepted(connection: queue)
+                    if let client = client as? SXClientSocket {
+                        try service.accepted(socket: client, as: queue)
+                    }
                 }
             }
         } catch {

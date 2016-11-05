@@ -40,8 +40,7 @@ public protocol SXService {
 }
 
 public protocol SXStreamService : SXService {
-    func accepting(socket: inout SXClientSocket)
-    func accepted(connection: SXQueue)
+    func accepted(socket: SXClientSocket, as connection: SXQueue) throws
     func connectionWillTerminate(_ connection: SXQueue)
     func connectionDidTerminate(_ connection: SXQueue)
 }
