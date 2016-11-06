@@ -77,7 +77,7 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
         }
     }
     
-    public static func tcpIpv4(service: SXStreamService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
+    public static func tcpIpv4(service: SXService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
         
         let conf = SXSocketConfiguation(domain: .inet, type: .stream, port: port, backlog: backlog, using: 0)
         let fns = SXClientSocket.standardIOHandlers
@@ -95,7 +95,7 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
                     }
     }
     
-    public static func tcpIpv6(service: SXStreamService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
+    public static func tcpIpv6(service: SXService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
         
         let conf = SXSocketConfiguation(domain: .inet6, type: .stream, port: port, backlog: backlog, using: 0)
         let fns = SXClientSocket.standardIOHandlers
