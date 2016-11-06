@@ -39,7 +39,7 @@ import Glibc
 import struct Foundation.Data
 import func CKit.mutablePointer
 
-public protocol UNIXFileDescriptor {
+public protocol FileDescriptorRepresentable {
     var fileDescriptor: Int32 { get }
 }
 
@@ -54,7 +54,7 @@ public protocol Writable {
     func done()
 }
 
-extension UNIXFileDescriptor where Self : Readable {
+extension FileDescriptorRepresentable where Self : Readable {
     
     public var availableBytesa: Int {
         var ret = 0

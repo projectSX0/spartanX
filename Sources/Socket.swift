@@ -40,7 +40,7 @@ import spartanXLinux
 import CKit
 #endif
 
-public protocol Socket : UNIXFileDescriptor {
+public protocol Socket : FileDescriptorRepresentable {
     var sockfd: Int32 { get }
     var domain: SocketDomains { get set }
     var type: SocketTypes { get set }

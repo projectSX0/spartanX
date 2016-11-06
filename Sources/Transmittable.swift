@@ -51,7 +51,7 @@ public struct SendMethods : OptionSet {
 
 public protocol Transmittable {
     var sendOptions: SendMethods { get }
-    func send(with method: SendMethods, using socket: Writable) throws
+    func send(with method: SendMethods, using agent: Writable) throws
 }
 
 
