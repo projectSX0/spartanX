@@ -28,15 +28,18 @@ For example, this following defines a very simple service that simply ping back 
 
 ```swift
 final class Foo: SXService {
-  static var supportedMethods = [.send] // required by protocol
-  var dataHandler: (SXQueue, Data) throws -> Bool // required by protocol
-  var errHandler: ((SXQueue, Error) -> ())? // required by protocol
-  init() {
-      self.dataHandler = { (queue, data) throws -> Bool in
-          print(String(data: data, encoding: .ascii))
-          queue.write("hi".data(using: .ascii)!) // write to queue
-          return true // return false implies closing the connection
-      }
+  var supportingMethods = [.send] // See Transmittable
+
+  // ShouldProceed is simply a typealias to Bool
+  public func received(data: Data, from connection: SXConnection) throws -> ShouldProceed {
+      print(String(data: data, encoding: .ascii))
+      connection.write("hi".data(using: .ascii)!) // write to connection
+      return true // return false implies closing the connection
+  }
+  
+  public func exceptionRaised(_ exception: Error, on connection: SXConnection) -> ShouldProceed {
+      // handle exception throw from the connection
+      return false // If the raised exception should terminal the connection
   }
 }
 ```
