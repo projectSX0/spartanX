@@ -33,23 +33,36 @@
 
 import struct Foundation.Data
 
+public typealias ShouldProceed = Bool
+
+public let YES = true
+public let NO = false
+
 public protocol SXService {
-    static var supportedMethods: SendMethods { get set }
-    var dataHandler: (SXQueue, Data) throws -> Bool  { get set }
-    var errHandler: ((SXQueue, Error) -> ())? { get set }
+    var supportingMethods: SendMethods { get set }
+    func received(data: Data, from connection: SXConnection) throws -> ShouldProceed
+    func exceptionRaised(_ exception: Error, on connection: SXConnection) -> ShouldProceed
 }
 
-public protocol SXStreamSocketService : SXService {
-    var acceptedHandler: ((inout SXClientSocket) -> ())? { get set }
+public protocol SXStreamService : SXService {
+    func accepted(socket: SXClientSocket, as connection: SXConnection) throws
+    func connectionWillTerminate(_ connection: SXConnection)
+    func connectionDidTerminate(_ connection: SXConnection)
 }
 
 open class SXConnectionService: SXService {
-    open var dataHandler: (SXQueue, Data) throws -> Bool
-    open var errHandler: ((SXQueue, Error) -> ())?
-    open var willTerminateHandler: ((SXQueue) -> ())?
-    open var didTerminateHandler: ((SXQueue) -> ())?
-    open static var supportedMethods: SendMethods = SendMethods(rawValue: 0)
-    public init(handler: @escaping (SXQueue, Data) throws -> Bool) {
+    
+    open func exceptionRaised(_ exception: Error, on connection: SXConnection) -> ShouldProceed { return false }
+
+    open var supportingMethods: SendMethods = [.send, .sendfile, .sendto]
+    
+    open func received(data: Data, from connection: SXConnection) throws -> ShouldProceed {
+        return try self.dataHandler(data, connection)
+    }
+    
+    open var dataHandler: (Data, SXConnection) throws -> ShouldProceed
+    
+    public init(handler: @escaping (Data, SXConnection) throws -> ShouldProceed) {
         self.dataHandler = handler
     }
 }

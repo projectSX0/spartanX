@@ -37,7 +37,7 @@ import func CKit.mutablePointer
 import struct Foundation.Data
 import func Foundation.time
 
-open class SXQueue: KqueueManagable, Writable, Hashable {
+open class SXConnection: KqueueManagable, Writable, Hashable {
     
     public var ident: Int32
     public var readAgent: Readable
@@ -63,10 +63,12 @@ open class SXQueue: KqueueManagable, Writable, Hashable {
     }
     
     public func done() {
+        (service as? SXStreamService)?.connectionWillTerminate(self)
         self.readAgent.done()
         self.writeAgent.done()
         debugLog("connection of fd \(ident) is ended, \(#function): \(#file): \(#line)")
         SXKernelManager.default?.unregister(ident: ident, of: .read)
+        (service as? SXStreamService)?.connectionDidTerminate(self)
     }
 
     public func write(data: Data) throws {
@@ -85,7 +87,7 @@ open class SXQueue: KqueueManagable, Writable, Hashable {
 
             if let data = try self.readAgent.read(size: availableDataSize) {
                 
-                if try !self.service.dataHandler(self, data) {
+                if try !self.service.received(data: data, from: self) {
                     return done()
                 }
             
@@ -94,7 +96,9 @@ open class SXQueue: KqueueManagable, Writable, Hashable {
             }
             
         } catch {
-            self.service.errHandler?(self, error)
+            if !self.service.exceptionRaised(error, on: self) {
+                return done()
+            }
         }
         
         #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS) || os(FreeBSD) || os(PS4)
@@ -105,6 +109,6 @@ open class SXQueue: KqueueManagable, Writable, Hashable {
     }
 }
 
-public func ==(lhs: SXQueue, rhs: SXQueue) -> Bool {
+public func ==(lhs: SXConnection, rhs: SXConnection) -> Bool {
     return lhs.hashValue == rhs.hashValue
 }

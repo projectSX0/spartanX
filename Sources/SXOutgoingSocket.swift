@@ -57,7 +57,9 @@ private func connect(_ fd: Int32, _ sockaddr: UnsafePointer<sockaddr>, _ socklen
     #endif
 }
 
-public struct SXConnectionSocket: ConnectionSocket
+public typealias SXConnectionSocket = SXOutgoingSocket // backward support
+
+public struct SXOutgoingSocket: OutgoingSocket
 {
     static let defaultBufsize = 1048576 * 4
     public var sockfd: Int32
@@ -81,7 +83,7 @@ public struct SXConnectionSocket: ConnectionSocket
 }
 
 //MARK: - runtime
-extension SXConnectionSocket {
+extension SXOutgoingSocket {
     
     @inline(__always)
     public func write(data: Data) throws {
@@ -90,8 +92,8 @@ extension SXConnectionSocket {
         }
     }
     
-    public static func oneshot(tls: Bool, hostname: String, service: String, request: Data, expectedResponseSize size: Int = SXConnectionSocket.defaultBufsize, timeout: timeval?, callback: (Data?) -> () ) throws {
-        let socket = try SXConnectionSocket(tls: tls, hostname: hostname, service: service, bufsize: size)
+    public static func oneshot(tls: Bool, hostname: String, service: String, request: Data, expectedResponseSize size: Int = SXOutgoingSocket.defaultBufsize, timeout: timeval?, callback: (Data?) -> () ) throws {
+        let socket = try SXOutgoingSocket(tls: tls, hostname: hostname, service: service, bufsize: size)
         try socket.write(data: request)
         if let timeout = timeout {
             socket.setTimeoutInterval(timeout)
@@ -102,8 +104,8 @@ extension SXConnectionSocket {
         socket.done()
     }
     
-    public static func oneshot(unixDomain: String, type: SocketTypes, request: Data, expectedResponseSize size: Int = SXConnectionSocket.defaultBufsize, timeout: timeval?, callback: (Data?) -> () ) throws {
-        let socket = try SXConnectionSocket(unixDomainName: unixDomain, type: type)
+    public static func oneshot(unixDomain: String, type: SocketTypes, request: Data, expectedResponseSize size: Int = SXOutgoingSocket.defaultBufsize, timeout: timeval?, callback: (Data?) -> () ) throws {
+        let socket = try SXOutgoingSocket(unixDomainName: unixDomain, type: type)
         try socket.write(data: request)
         if let timeout = timeout {
             socket.setTimeoutInterval(timeout)
@@ -135,7 +137,7 @@ extension SXConnectionSocket {
     }
 }
 
-extension SXConnectionSocket: KqueueManagable {
+extension SXOutgoingSocket: KqueueManagable {
 
     public func runloop(manager: SXKernel, _ ev: event) {
         
@@ -168,9 +170,9 @@ extension SXConnectionSocket: KqueueManagable {
 }
 
 //MARK: - initializers
-public extension SXConnectionSocket {
+public extension SXOutgoingSocket {
     
-    public init(unixDomainName: String, type: SocketTypes, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+    public init(unixDomainName: String, type: SocketTypes, `protocol`: Int32 = 0, bufsize: Int = SXOutgoingSocket.defaultBufsize) throws {
         if type != .stream && type != .seqpacket {
             throw SocketError.unconnectable
         }
@@ -207,7 +209,7 @@ public extension SXConnectionSocket {
         }
     }
     
-    public init(tls: Bool = false, hostname: String, service: String, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+    public init(tls: Bool = false, hostname: String, service: String, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXOutgoingSocket.defaultBufsize) throws {
         let addresses: [SXSocketAddress] = try! DNS.lookup(hostname: hostname, service: service)
         var fd: Int32 = -1
         self.type = type
@@ -231,7 +233,7 @@ public extension SXConnectionSocket {
         #if __tls
             if tls {
                 self.readHandler = { client_socket, _ throws -> Data? in
-                    return try (client_socket as! SXConnectionSocket).tlsContext.read(size: 16 * 1024)
+                    return try (client_socket as! SXOutgoingSocket).tlsContext.read(size: 16 * 1024)
                 }
                 
                 self.writeHandler = { client_socket, data throws in
@@ -270,7 +272,7 @@ public extension SXConnectionSocket {
     }
     
     
-    public init(tls: Bool = false, hostname: String, port: in_port_t, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+    public init(tls: Bool = false, hostname: String, port: in_port_t, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXOutgoingSocket.defaultBufsize) throws {
         let addresses: [SXSocketAddress] = try! DNS.lookup(hostname: hostname, port: port)
         var fd: Int32 = -1
         self.type = type
@@ -294,7 +296,7 @@ public extension SXConnectionSocket {
         #if __tls
             if tls {
                 self.readHandler = { client_socket, _ throws -> Data? in
-                    return try (client_socket as! SXConnectionSocket).tlsContext.read(size: 16 * 1024)
+                    return try (client_socket as! SXOutgoingSocket).tlsContext.read(size: 16 * 1024)
                 }
                 
                 self.writeHandler = { client_socket, data throws in
@@ -334,7 +336,7 @@ public extension SXConnectionSocket {
         self.hashValue = Int(sockfd) * time(nil)
     }
     
-    public init(ipv4: String, port: in_port_t, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+    public init(ipv4: String, port: in_port_t, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXOutgoingSocket.defaultBufsize) throws {
         self.sockfd = socket(AF_INET, type.rawValue, `protocol`)
         self.domain = .inet
         self.type = type
@@ -366,7 +368,7 @@ public extension SXConnectionSocket {
         }
     }
     
-    public init(ipv6: String, port: in_port_t, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+    public init(ipv6: String, port: in_port_t, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXOutgoingSocket.defaultBufsize) throws {
         self.sockfd = socket(AF_INET6, type.rawValue, `protocol`)
         self.domain = .inet6
         self.type = type
@@ -397,7 +399,7 @@ public extension SXConnectionSocket {
         }
     }
     
-    public init?(ipv4: String, service: String, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+    public init?(ipv4: String, service: String, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXOutgoingSocket.defaultBufsize) throws {
         let port = (UInt16(getservbyname(service.cString(using: String.Encoding.ascii)!, nil).pointee.s_port)).byteSwapped
         self.sockfd = socket(AF_INET, type.rawValue, `protocol`)
         self.domain = .inet
@@ -429,7 +431,7 @@ public extension SXConnectionSocket {
         }
     }
     
-    public init(ipv6: String, service: String, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXConnectionSocket.defaultBufsize) throws {
+    public init(ipv6: String, service: String, type: SocketTypes = .stream, `protocol`: Int32 = 0, bufsize: Int = SXOutgoingSocket.defaultBufsize) throws {
         let port = (UInt16(getservbyname(service.cString(using: String.Encoding.ascii)!, nil).pointee.s_port)).byteSwapped
         self.sockfd = socket(AF_INET6, type.rawValue, `protocol`)
         self.domain = .inet6

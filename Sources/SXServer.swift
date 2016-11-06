@@ -63,7 +63,6 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
         self.backlog = conf.backlog
         self._accept = accept
         
-        
         self.sockfd = socket(Int32(domain.rawValue), type.rawValue, `protocol`)
         
         if sockfd == -1 {
@@ -78,7 +77,7 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
         }
     }
     
-    public static func tcpIpv4(service: SXStreamSocketService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
+    public static func tcpIpv4(service: SXStreamService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
         
         let conf = SXSocketConfiguation(domain: .inet, type: .stream, port: port, backlog: backlog, using: 0)
         let fns = SXClientSocket.standardIOHandlers
@@ -89,16 +88,14 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
                         var socklen = socklen_t()
                         let fd = Foundation.accept(server.sockfd, &addr, &socklen)
                         getpeername(fd, &addr, &socklen)
-                        var client = try! SXClientSocket(fd: fd,
-                                                         addrinfo: (addr: addr, len: socklen),
-                                                         sockinfo: (type: conf.type, protocol: conf.`protocol`),
-                                                         functions: fns)
-                        service.acceptedHandler?(&client)
-                        return client
+                        return try! SXClientSocket(fd: fd,
+                                                   addrinfo: (addr: addr, len: socklen),
+                                                   sockinfo: (type: conf.type, protocol: conf.`protocol`),
+                                                   functions: fns)
                     }
     }
     
-    public static func tcpIpv6(service: SXStreamSocketService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
+    public static func tcpIpv6(service: SXStreamService, port: in_port_t, backlog: Int = 50) throws  -> SXServerSocket {
         
         let conf = SXSocketConfiguation(domain: .inet6, type: .stream, port: port, backlog: backlog, using: 0)
         let fns = SXClientSocket.standardIOHandlers
@@ -108,13 +105,11 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
             var addr = sockaddr()
             var socklen = socklen_t()
             let fd = Foundation.accept(server.sockfd, &addr, &socklen)
-            getpeername(fd, &addr, &socklen)
-            var client = try! SXClientSocket(fd: fd,
-                                             addrinfo: (addr: addr, len: socklen),
-                                             sockinfo: (type: conf.type, protocol: conf.`protocol`),
-                                             functions: fns)
-            service.acceptedHandler?(&client)
-            return client
+            
+            return try! SXClientSocket(fd: fd,
+                                       addrinfo: (addr: addr, len: socklen),
+                                       sockinfo: (type: conf.type, protocol: conf.`protocol`),
+                                       functions: fns)
         }
     }
     
@@ -158,7 +153,12 @@ public extension SXServerSocket {
         do {
             if self.type == .stream {
                 let client = try self.accept()
-                _ = try SXQueue(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
+                let queue = try SXConnection(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
+                if let service = service as? SXStreamService {
+                    if let client = client as? SXClientSocket {
+                        try service.accepted(socket: client, as: queue)
+                    }
+                }
             }
         } catch {
             //FIXME: use real handler
