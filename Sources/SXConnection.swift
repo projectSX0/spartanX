@@ -37,7 +37,7 @@ import func CKit.mutablePointer
 import struct Foundation.Data
 import func Foundation.time
 
-open class SXQueue: KqueueManagable, Writable, Hashable {
+open class SXConnection: KqueueManagable, Writable, Hashable {
     
     public var ident: Int32
     public var readAgent: Readable
@@ -109,6 +109,6 @@ open class SXQueue: KqueueManagable, Writable, Hashable {
     }
 }
 
-public func ==(lhs: SXQueue, rhs: SXQueue) -> Bool {
+public func ==(lhs: SXConnection, rhs: SXConnection) -> Bool {
     return lhs.hashValue == rhs.hashValue
 }

@@ -57,7 +57,7 @@ public protocol ClientSocket : Socket, Readable, Writable {
     var address: SXSocketAddress? { get set }
 }
 
-public protocol ConnectionSocket : Socket, Addressable, Readable, Writable {
+public protocol OutgoingSocket : Socket, Addressable, Readable, Writable {
     
 }
 
@@ -89,7 +89,6 @@ extension Socket {
 extension Readable where Self : Socket {
     
     func recv_block(size: Int, r_flags: Int32 = 0) throws -> Data? {
-//        let size = self.readBufsize
         
         var buffer = [UInt8](repeating: 0, count: size)
         var len = 0

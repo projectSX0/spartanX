@@ -40,29 +40,29 @@ public let NO = false
 
 public protocol SXService {
     var supportingMethods: SendMethods { get set }
-    func received(data: Data, from connection: SXQueue) throws -> ShouldProceed
-    func exceptionRaised(_ exception: Error, on connection: SXQueue) -> ShouldProceed
+    func received(data: Data, from connection: SXConnection) throws -> ShouldProceed
+    func exceptionRaised(_ exception: Error, on connection: SXConnection) -> ShouldProceed
 }
 
 public protocol SXStreamService : SXService {
-    func accepted(socket: SXClientSocket, as connection: SXQueue) throws
-    func connectionWillTerminate(_ connection: SXQueue)
-    func connectionDidTerminate(_ connection: SXQueue)
+    func accepted(socket: SXClientSocket, as connection: SXConnection) throws
+    func connectionWillTerminate(_ connection: SXConnection)
+    func connectionDidTerminate(_ connection: SXConnection)
 }
 
 open class SXConnectionService: SXService {
     
-    open func exceptionRaised(_ exception: Error, on connection: SXQueue) -> ShouldProceed { return false }
+    open func exceptionRaised(_ exception: Error, on connection: SXConnection) -> ShouldProceed { return false }
 
     open var supportingMethods: SendMethods = [.send, .sendfile, .sendto]
     
-    open func received(data: Data, from connection: SXQueue) throws -> ShouldProceed {
+    open func received(data: Data, from connection: SXConnection) throws -> ShouldProceed {
         return try self.dataHandler(data, connection)
     }
     
-    open var dataHandler: (Data, SXQueue) throws -> ShouldProceed
+    open var dataHandler: (Data, SXConnection) throws -> ShouldProceed
     
-    public init(handler: @escaping (Data, SXQueue) throws -> ShouldProceed) {
+    public init(handler: @escaping (Data, SXConnection) throws -> ShouldProceed) {
         self.dataHandler = handler
     }
 }

@@ -88,11 +88,10 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
                         var socklen = socklen_t()
                         let fd = Foundation.accept(server.sockfd, &addr, &socklen)
                         getpeername(fd, &addr, &socklen)
-                        var client = try! SXClientSocket(fd: fd,
-                                                         addrinfo: (addr: addr, len: socklen),
-                                                         sockinfo: (type: conf.type, protocol: conf.`protocol`),
-                                                         functions: fns)
-                        return client
+                        return try! SXClientSocket(fd: fd,
+                                                   addrinfo: (addr: addr, len: socklen),
+                                                   sockinfo: (type: conf.type, protocol: conf.`protocol`),
+                                                   functions: fns)
                     }
     }
     
@@ -106,12 +105,11 @@ open class SXServerSocket : ServerSocket, KqueueManagable {
             var addr = sockaddr()
             var socklen = socklen_t()
             let fd = Foundation.accept(server.sockfd, &addr, &socklen)
-            getpeername(fd, &addr, &socklen)
-            var client = try! SXClientSocket(fd: fd,
-                                             addrinfo: (addr: addr, len: socklen),
-                                             sockinfo: (type: conf.type, protocol: conf.`protocol`),
-                                             functions: fns)
-            return client
+            
+            return try! SXClientSocket(fd: fd,
+                                       addrinfo: (addr: addr, len: socklen),
+                                       sockinfo: (type: conf.type, protocol: conf.`protocol`),
+                                       functions: fns)
         }
     }
     
@@ -155,7 +153,7 @@ public extension SXServerSocket {
         do {
             if self.type == .stream {
                 let client = try self.accept()
-                let queue = try SXQueue(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
+                let queue = try SXConnection(fd: client.sockfd, readFrom: client, writeTo: client, with: self.service)
                 if let service = service as? SXStreamService {
                     if let client = client as? SXClientSocket {
                         try service.accepted(socket: client, as: queue)

@@ -37,11 +37,18 @@ public struct SendMethods : OptionSet {
         self.rawValue = rawValue
     }
     
+    /// accepts send(), write(), writev() system call
     public static let send = SendMethods(rawValue: 0)
+    /// accepts sendfile() system call
     public static let sendfile = SendMethods(rawValue: 1)
+    /// accepts sendto() system call
     public static let sendto = SendMethods(rawValue: 1 << 1)
+    /// accepts sendmsg() system call
     public static let sendmsg = SendMethods(rawValue: 1 << 2)
+    /// accepts write(), writev() system call
+    public static let write = SendMethods(rawValue: 1 << 3)
 }
+
 public protocol Transmittable {
     var sendOptions: SendMethods { get }
     func send(with method: SendMethods, using socket: Writable) throws
