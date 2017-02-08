@@ -88,6 +88,14 @@ extension Socket {
 
 extension Readable where Self : Socket {
     
+    
+    /// Receive from a blocking socket
+    ///
+    /// - Parameters:
+    ///   - size: how many bytes to receive
+    ///   - r_flags: flag for recv() syscall
+    /// - Returns: the data, nil if no data available from the socket
+    /// - Throws: When error occurs from system calls, the same error will throw
     func recv_block(size: Int, r_flags: Int32 = 0) throws -> Data? {
         
         var buffer = [UInt8](repeating: 0, count: size)
@@ -106,33 +114,62 @@ extension Readable where Self : Socket {
         return Data(bytes: buffer, count: len)
     }
     
+    
+    /// Receive from a non-blocking socket
+    ///
+    /// - Parameters:
+    ///   - size: how many bytes to receive
+    ///   - r_flags: flag for recv() syscall
+    /// - Returns: the data, nil if no data is available from the socket
+    /// - Throws: When error occurs from system calls, the same error will throw
     func recv_nonblock(size: Int, r_flags: Int32 = 0) throws -> Data? {
         
+        // our buffer to store data
         var buffer = [UInt8](repeating: 0, count: size)
+        
+        // to store how many bytes the current cycle receved
         var len = 0
-        var _len = 0
+        
+        // the total number of bytes
+        var total = 0
+        
         recv_loop: while true {
+            
+            // a small buffer to save the current amount of bytes to receive
             var smallbuffer = [UInt8](repeating: 0, count: size)
+            
             len = recv(sockfd, &smallbuffer, size, r_flags)
             
-            if len < 0 {
+            // if no data in the socket
+            if len == 0 {
+                return nil
+            }
+            
+            let dataAvailable = len > 0
+            
+            // if there are some bytes available from the scoket
+            if dataAvailable {
+                // read it to the buffer
+                buffer.append(contentsOf: smallbuffer)
+                // count the number of bytes read
+                total += len
+            } else {
                 
+                // it can be no more data available, or error occurs
                 switch errno {
+                    
+                // no more bytes available, break the loop
                 case EAGAIN, EWOULDBLOCK:
                     break recv_loop
+                    
+                // some error occurs when calling the system call, throw the error
                 default:
                     throw SocketError.recv(String.errno)
                 }
-                
-            } else if len > 0 {
-                buffer.append(contentsOf: smallbuffer)
-                _len += len
-            } else {
-                return nil
             }
         }
         
-        return Data(bytes: buffer, count: len)
+        return Data(bytes: buffer, count: total)
     }
 }
 
