@@ -76,6 +76,12 @@ public extension Addressable where Self : Socket {
             #else
             err = Glibc.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_un>.size))
             #endif
+        case var .dl(addr):
+            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
+                err = Darwin.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_un>.size))
+            #else
+                err = Glibc.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_dl>.size))
+            #endif
         }
         
         if err == -1 {

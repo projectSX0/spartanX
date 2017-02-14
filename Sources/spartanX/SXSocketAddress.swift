@@ -31,22 +31,24 @@
 //
 
 import Foundation
+import spartanX_include
+
 import func CKit.pointer
 import func CKit.mutablePointer
-
 #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-public let UNIX_PATH_MAX = 104
+    public let UNIX_PATH_MAX = 104
 #elseif os(FreeBSD) || os(Linux)
-public let UNIX_PATH_MAX = 108
+    public let UNIX_PATH_MAX = 108
 #endif
 
 public enum SXSocketAddress {
     case inet(sockaddr_in)
     case inet6(sockaddr_in6)
+    case dl(sockaddr_dl)
     case unix(sockaddr_un)
     
-    public var ipaddress: String {
-
+    public var address: String {
+        
         var buffer = [Int8](repeating: 0, count: Int(PATH_MAX))
         switch self {
         case var .inet(`in`):
@@ -55,6 +57,11 @@ public enum SXSocketAddress {
             inet_ntop(AF_INET6, pointer(of: &in6.sin6_addr) , &buffer, socklen_t(MemoryLayout<sockaddr_in6>.size))
         case var .unix(un):
             strncpy(&buffer, pointer(of: &un.sun_path).cast(to: Int8.self), Int(PATH_MAX))
+        case var .dl(d):
+            let s = link_ntoa(&d);
+            strncpy(&buffer, s, Int(strlen(s)));
+            
+        default: return ""
         }
         
         return String(cString: buffer)
@@ -75,7 +82,7 @@ public extension SXSocketAddress {
             return addr.sin_port
         case let .inet6(addr):
             return addr.sin6_port
-        case .unix:
+        default:
             return nil
         }
     }
@@ -89,6 +96,8 @@ public extension SXSocketAddress {
                 return socklen_t(MemoryLayout<sockaddr_in>.size)
             case .unix(_):
                 return socklen_t(MemoryLayout<sockaddr_un>.size)
+            case .dl(_):
+                return socklen_t(MemoryLayout<sockaddr_dl>.size)
             }
         }
     }
@@ -102,6 +111,47 @@ public extension SXSocketAddress {
         case UInt32(MemoryLayout<sockaddr_un>.size):
             return .unix
         default: return nil
+        }
+    }
+}
+
+extension sockaddr {
+    
+    var sxaddr: SXSocketAddress? {
+        return try? SXSocketAddress(self, socklen: socklen_t(self.sa_len))
+    }
+    
+    var inetaddr: sockaddr_in? {
+        if sa_family != UInt8(AF_INET) {
+            return nil
+        }
+        
+        guard let associated = try? SXSocketAddress(self, socklen: socklen_t(MemoryLayout<sockaddr_in>.size)) else {
+            return nil
+        }
+        
+        switch associated {
+        case let .inet(addr):
+            return addr
+        default:
+            return nil // should not happen
+        }
+    }
+    
+    var inet6addr: sockaddr_in6? {
+        if sa_family != UInt8(AF_INET6) {
+            return nil
+        }
+        
+        guard let associated = try? SXSocketAddress(self, socklen: socklen_t(MemoryLayout<sockaddr_in6>.size)) else {
+            return nil
+        }
+        
+        switch associated {
+        case let .inet6(addr):
+            return addr
+        default:
+            return nil // should not happen
         }
     }
 }
@@ -146,13 +196,31 @@ public extension SXSocketAddress {
     
     public init(_ addr_: sockaddr, socklen: socklen_t) throws {
         var addr = addr_
-        switch socklen {
-        case UInt32(MemoryLayout<sockaddr_in>.size):
+        
+        switch Int32(addr.sa_family) {
+        case AF_INET:
             self = .inet(mutablePointer(of: &addr).cast(to: sockaddr_in.self).pointee)
-        case UInt32(MemoryLayout<sockaddr_in6>.size):
+        case AF_INET6:
             self = .inet6(mutablePointer(of: &addr).cast(to: sockaddr_in6.self).pointee)
-        case UInt32(MemoryLayout<sockaddr_un>.size):
+        case AF_UNIX:
             self = .unix(mutablePointer(of: &addr).cast(to: sockaddr_un.self).pointee)
+        case AF_LINK:
+            self = .dl(mutablePointer(of: &addr).cast(to: sockaddr_dl.self).pointee)
+        default:
+            throw Error.nonImplementedDomain
+        }
+    }
+    
+    public init(_ addr: UnsafePointer<sockaddr>) throws {
+        switch Int32(addr.pointee.sa_family) {
+        case AF_INET:
+            self = .inet(addr.cast(to: sockaddr_in.self).pointee)
+        case AF_INET6:
+            self = .inet6(addr.cast(to: sockaddr_in6.self).pointee)
+        case AF_UNIX:
+            self = .unix(addr.cast(to: sockaddr_un.self).pointee)
+        case AF_LINK:
+            self = .dl(addr.cast(to: sockaddr_dl.self).pointee)
         default:
             throw Error.nonImplementedDomain
         }
@@ -169,7 +237,7 @@ public extension SXSocketAddress {
         }
     }
     
-    public init?(address: String, withDomain domain: SocketDomains, port: in_port_t) {
+    public init?(address: String, withDomain domain: SocketDomains, port: in_port_t = 0) {
         switch domain {
             
         case .inet:
@@ -199,9 +267,20 @@ public extension SXSocketAddress {
             
             self = .unix(sockaddr)
             
+        case .link:
+            
+            #if !os(Linux)
+            var sockaddr = sockaddr_dl()
+            sockaddr.sdl_family = UInt8(AF_LINK)
+            sockaddr.sdl_len = UInt8(MemoryLayout<sockaddr_dl>.size)
+            link_addr(address.cString(using: .ascii), &sockaddr)
+            self = .dl(sockaddr)
+            #else
+            fallthrough
+            #endif
+            
         default:
             return nil
         }
     }
 }
-

@@ -36,16 +36,28 @@
     import typealias Glibc.in_port_t
 #endif
 
+
+/// This structure provides a template for of a socket
 public struct SXSocketConfiguation {
+    
+    // any socket we can explicitly create should have some sort of addresses
     public var address: SXSocketAddress
+    
+    // sometiems they are binded to a port
     public var port: in_port_t
     
+    // domain of the socket, for example AF_INET and AF_INET6
     public var domain: SocketDomains {
         return address.sockdomain()!
     }
     
+    // stream/dgram/...
     public var type: SocketTypes
+    
+    // same as the protocol field (third argument of the C socket() syscall)
     public var `protocol`: Int32
+    
+    // # of backlogs
     public var backlog : Int
     
     /* legacy */
@@ -61,6 +73,14 @@ public struct SXSocketConfiguation {
         self.`protocol` = `protocol`
     }
     
+    
+    /// Create a configuation for unix domain socket
+    ///
+    /// - Parameters:
+    ///   - unixDomain: this unix domain of the socket
+    ///   - type: for example, stream socket
+    ///   - backlog: number of backlogs
+    ///   - `protocol`: same as socket()
     internal init(unixDomain: String, type: SocketTypes, backlog: Int = 50, using `protocol`: Int32 = 0) {
         self.address = SXSocketAddress(address: unixDomain, withDomain: .unix, port: 0)!
         self.port = 0

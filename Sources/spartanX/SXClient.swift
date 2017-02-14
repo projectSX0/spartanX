@@ -99,7 +99,7 @@ public extension SXClientSocket {
     }) { (_ client: SXClientSocket) in }
     
     public var addressString: String? {
-        return self.address?.ipaddress
+        return self.address?.address
     }
     
     public func write(data: Data) throws {
