@@ -78,7 +78,7 @@ public struct NetworkInterface: CustomStringConvertible {
     }
     
     
-    public static var intefaces: [NetworkInterface] {
+    public static var interfaces: [NetworkInterface] {
         var head: UnsafeMutablePointer<ifaddrs>?
         var cur: UnsafeMutablePointer<ifaddrs>?
         
@@ -90,16 +90,14 @@ public struct NetworkInterface: CustomStringConvertible {
         
         while (cur != nil) {
             intefaces.append(NetworkInterface(raw: cur!))
-            print(cur!.pointee.ifa_addr.pointee.sa_family)
             cur = cur!.pointee.ifa_next
-            
         }
         
         freeifaddrs(head)
         return intefaces
     }
     
-    public static func intefaces(support domains: Set<SocketDomains>) -> [NetworkInterface] {
+    public static func interfaces(support domains: Set<SocketDomains>) -> [NetworkInterface] {
         var head: UnsafeMutablePointer<ifaddrs>?
         var cur: UnsafeMutablePointer<ifaddrs>?
         
@@ -122,7 +120,7 @@ public struct NetworkInterface: CustomStringConvertible {
         return intefaces
     }
     
-    public static func inteface(named: String, support domain: SocketDomains) -> NetworkInterface? {
+    public static func interface(named: String, support domain: SocketDomains) -> NetworkInterface? {
         var head: UnsafeMutablePointer<ifaddrs>?
         var cur: UnsafeMutablePointer<ifaddrs>?
         
@@ -145,7 +143,7 @@ public struct NetworkInterface: CustomStringConvertible {
         return inteface
     }
     
-    public static func intefaces(named: String) -> [NetworkInterface] {
+    public static func interfaces(named: String) -> [NetworkInterface] {
         var head: UnsafeMutablePointer<ifaddrs>?
         var cur: UnsafeMutablePointer<ifaddrs>?
         
