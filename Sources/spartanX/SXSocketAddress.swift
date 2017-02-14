@@ -103,13 +103,21 @@ public extension SXSocketAddress {
     }
     
     public func sockdomain() -> SocketDomains? {
-        switch self.socklen {
-        case UInt32(MemoryLayout<sockaddr_in>.size):
+        switch self {
+        case .dl:
+            return .link
+        case .inet:
             return .inet
-        case UInt32(MemoryLayout<sockaddr_in6>.size):
+        case .inet6:
             return .inet6
-        case UInt32(MemoryLayout<sockaddr_un>.size):
+        case .unix:
             return .unix
+//        case UInt32(MemoryLayout<sockaddr_in>.size):
+//            return .inet
+//        case UInt32(MemoryLayout<sockaddr_in6>.size):
+//            return .inet6
+//        case UInt32(MemoryLayout<sockaddr_un>.size):
+//            return .unix
         default: return nil
         }
     }
