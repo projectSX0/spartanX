@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import spartanX_include
+import OSHeader
 
 public struct NetworkInterface: CustomStringConvertible {
     
@@ -50,7 +50,7 @@ public struct NetworkInterface: CustomStringConvertible {
     }
     
     public var isLoopback: Bool {
-        return contains(IFF_LOOPBACK)
+        return contains(IFF_LOOPBACK) || name.hasPrefix("lo")
     }
     
     public var noArp: Bool {
@@ -75,6 +75,10 @@ public struct NetworkInterface: CustomStringConvertible {
     
     public var running: Bool {
         return contains(IFF_RUNNING)
+    }
+    
+    public var simplex: Bool {
+        return contains(IFF_SIMPLEX)
     }
     
     

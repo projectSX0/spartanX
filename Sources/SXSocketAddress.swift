@@ -31,7 +31,7 @@
 //
 
 import Foundation
-import spartanX_include
+import OSHeader
 
 import func CKit.pointer
 import func CKit.mutablePointer
