@@ -80,10 +80,11 @@ public struct NetworkInterface: CustomStringConvertible {
         return contains(IFF_RUNNING)
     }
     
+    #if !os(Linux)
     public var simplex: Bool {
         return contains(IFF_SIMPLEX)
     }
-    
+    #endif
     
     public static var interfaces: [NetworkInterface] {
         var head: UnsafeMutablePointer<ifaddrs>?
@@ -115,7 +116,7 @@ public struct NetworkInterface: CustomStringConvertible {
         cur = head;
         
         while (cur != nil) {
-            if let domain = SocketDomains(rawValue: UInt8(cur!.pointee.ifa_addr.pointee.sa_family)) {
+            if let domain = SocketDomains(rawValue: cur!.pointee.ifa_addr.pointee.sa_family) {
                 if domains.contains(domain) {
                     intefaces.append(NetworkInterface(raw: cur!));
                 }
