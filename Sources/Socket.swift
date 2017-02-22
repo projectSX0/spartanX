@@ -36,7 +36,7 @@ import struct Foundation.Data
 import Darwin
 #else
 import Glibc
-import spartanXLinux
+import OSHeader
 import CKit
 #endif
 

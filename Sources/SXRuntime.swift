@@ -34,7 +34,7 @@ import struct Foundation.Data
 import func CKit.pointer
 
 #if os(Linux)
-    import spartanXLinux // epoll
+    import OSHeader // epoll
 #endif
 
 #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)

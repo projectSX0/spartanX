@@ -36,6 +36,7 @@ import Darwin
 import Glibc
 #endif
 import func CKit.pointer
+import OSHeader
 
 public protocol Addressable {
     var address: SXSocketAddress? { get set }

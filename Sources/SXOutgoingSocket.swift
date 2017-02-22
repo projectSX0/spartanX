@@ -35,7 +35,7 @@ import Darwin
 #else
 import Glibc
 #if os(Linux)
-import spartanXLinux
+import OSHeader
 #endif /* os(Linux) */
 #endif /* osx ios watchos tvos*/
 
