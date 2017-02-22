@@ -23,9 +23,7 @@ public struct NetworkInterface: CustomStringConvertible {
     }
     
     public var description: String {
-        
         var proto = "other"
-        
         if address != nil {
             proto = "\(address!.sockdomain()!)"
         }
@@ -34,6 +32,11 @@ public struct NetworkInterface: CustomStringConvertible {
     
     @inline(__always)
     private func contains(_ f: Int32) -> Bool {
+        return (flags & UInt32(f)) == UInt32(f)
+    }
+    
+    @inline(__always)
+    private func contains(_ f: Int) -> Bool {
         return (flags & UInt32(f)) == UInt32(f)
     }
     
@@ -112,7 +115,7 @@ public struct NetworkInterface: CustomStringConvertible {
         cur = head;
         
         while (cur != nil) {
-            if let domain = SocketDomains(rawValue: cur!.pointee.ifa_addr.pointee.sa_family) {
+            if let domain = SocketDomains(rawValue: UInt8(cur!.pointee.ifa_addr.pointee.sa_family)) {
                 if domains.contains(domain) {
                     intefaces.append(NetworkInterface(raw: cur!));
                 }

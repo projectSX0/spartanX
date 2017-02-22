@@ -58,9 +58,12 @@ public enum SXSocketAddress {
         case var .unix(un):
             strncpy(&buffer, pointer(of: &un.sun_path).cast(to: Int8.self), Int(PATH_MAX))
         case var .dl(d):
-            let s = link_ntoa(&d);
-            strncpy(&buffer, s, Int(strlen(s)));
-            
+            #if os(Linux)
+                fallthrough
+            #else
+                let s = link_ntoa(&d);
+                strncpy(&buffer, s, Int(strlen(s)));
+            #endif
         default: return ""
         }
         
@@ -126,11 +129,11 @@ public extension SXSocketAddress {
 extension sockaddr {
     
     var sxaddr: SXSocketAddress? {
-        return try? SXSocketAddress(self, socklen: socklen_t(self.sa_len))
+        return try? SXSocketAddress(self, socklen: 0)
     }
     
     var inetaddr: sockaddr_in? {
-        if sa_family != UInt8(AF_INET) {
+        if sa_family != sa_family_t(AF_INET) {
             return nil
         }
         
@@ -147,7 +150,7 @@ extension sockaddr {
     }
     
     var inet6addr: sockaddr_in6? {
-        if sa_family != UInt8(AF_INET6) {
+        if sa_family != sa_family_t(AF_INET6) {
             return nil
         }
         
@@ -279,7 +282,7 @@ public extension SXSocketAddress {
             
             #if !os(Linux)
             var sockaddr = sockaddr_dl()
-            sockaddr.sdl_family = UInt8(AF_LINK)
+            sockaddr.sdl_family = sa_family_t(AF_LINK)
             sockaddr.sdl_len = UInt8(MemoryLayout<sockaddr_dl>.size)
             link_addr(address.cString(using: .ascii), &sockaddr)
             self = .dl(sockaddr)
