@@ -123,7 +123,8 @@
     }
     #endif
 #else
-public enum SocketDomains: UInt8 {
+    
+public enum SocketDomains: UInt16 {
     case unspec     = 0
     case unix       = 1
     case inet       = 2
