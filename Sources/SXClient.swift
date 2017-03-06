@@ -32,11 +32,7 @@
 
 import struct Foundation.Data
 
-#if os(Linux) || os(FreeBSD)
-    import Glibc
-#else
-    import Darwin
-#endif
+import xlibc
 
 public struct ClientFunctions<ClientSocketType> {
     var read: (ClientSocketType, Int) throws -> Data?

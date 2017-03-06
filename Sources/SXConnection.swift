@@ -30,10 +30,7 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-#if os(Linux)
-import Glibc /* ioctl */
-import func CKit.mutablePointer
-#endif
+import xlibc
 import struct Foundation.Data
 import func Foundation.time
 

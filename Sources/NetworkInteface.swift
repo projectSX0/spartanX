@@ -6,8 +6,7 @@
 //
 //
 
-import Foundation
-import OSHeader
+import CKit
 
 public struct NetworkInterface: CustomStringConvertible {
     

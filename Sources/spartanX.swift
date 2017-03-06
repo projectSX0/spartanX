@@ -30,12 +30,7 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-#if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-    import typealias Darwin.in_port_t
-#else
-    import typealias Glibc.in_port_t
-#endif
-
+import typealias xlibc.in_port_t
 
 /// This structure provides a template for of a socket
 public struct SXSocketConfiguation {

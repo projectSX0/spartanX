@@ -31,14 +31,7 @@
 //
 
 import struct Foundation.Data
-
-#if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-import Darwin
-#else
-import Glibc
-import OSHeader
 import CKit
-#endif
 
 public protocol Socket : FileDescriptorRepresentable {
     var sockfd: Int32 { get }

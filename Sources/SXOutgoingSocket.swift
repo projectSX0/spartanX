@@ -30,31 +30,16 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-#if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-import Darwin
-#else
-import Glibc
-#if os(Linux)
-import OSHeader
-#endif /* os(Linux) */
-#endif /* osx ios watchos tvos*/
-
-import CKit
-import Foundation
-
 #if __tls
     import struct swiftTLS.TLSClient
 #endif
 
+import CKit
 import struct Foundation.Data
-import func CKit.pointer
 
 private func connect(_ fd: Int32, _ sockaddr: UnsafePointer<sockaddr>, _ socklen_t: socklen_t) -> Int32 {
-    #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-        return Darwin.connect(fd, sockaddr, socklen_t)
-    #else
-        return Glibc.connect(fd, sockaddr, socklen_t)
-    #endif
+    
+        return xlibc.connect(fd, sockaddr, socklen_t)
 }
 
 public typealias SXConnectionSocket = SXOutgoingSocket // backward support

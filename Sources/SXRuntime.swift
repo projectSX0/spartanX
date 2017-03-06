@@ -33,15 +33,7 @@
 import struct Foundation.Data
 import func CKit.pointer
 
-#if os(Linux)
-    import OSHeader // epoll
-#endif
-
-#if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-    import Darwin
-#else
-    import Glibc
-#endif
+import xlibc
 
 #if os(Linux)
     public typealias event = epoll_event

@@ -30,13 +30,8 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-#if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-import Darwin
-#else
-import Glibc
-#endif
+import xlibc
 import func CKit.pointer
-import OSHeader
 
 public protocol Addressable {
     var address: SXSocketAddress? { get set }
@@ -59,30 +54,15 @@ public extension Addressable where Self : Socket {
         
         switch address {
         case var .inet(addr):
-            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-            err = Darwin.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_in>.size))
-            #else
-            err = Glibc.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_in>.size))
-            #endif
-            
+            err = xlibc.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_in>.size))
         case var .inet6(addr):
-            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-            err = Darwin.bind(sockfd, pointer(of: &addr).cast(to : sockaddr.self), socklen_t(MemoryLayout<sockaddr_in6>.size))
-            #else
-            err = Glibc.bind(sockfd, pointer(of: &addr).cast(to : sockaddr.self), socklen_t(MemoryLayout<sockaddr_in6>.size))
-            #endif
+            err = xlibc.bind(sockfd, pointer(of: &addr).cast(to : sockaddr.self), socklen_t(MemoryLayout<sockaddr_in6>.size))
         case var .unix(addr):
-            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-            err = Darwin.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_un>.size))
-            #else
-            err = Glibc.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_un>.size))
-            #endif
+            err = xlibc.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_un>.size))
+            
         case var .dl(addr):
-            #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-                err = Darwin.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_un>.size))
-            #else
-                err = Glibc.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_dl>.size))
-            #endif
+                err = xlibc.bind(sockfd, pointer(of: &addr).cast(to: sockaddr.self), socklen_t(MemoryLayout<sockaddr_un>.size))
+            
         }
         
         if err == -1 {
