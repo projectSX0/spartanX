@@ -30,11 +30,8 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-import Foundation
-import OSHeader
+import CKit
 
-import func CKit.pointer
-import func CKit.mutablePointer
 #if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
     public let UNIX_PATH_MAX = 104
 #elseif os(FreeBSD) || os(Linux)
@@ -42,6 +39,7 @@ import func CKit.mutablePointer
 #endif
 
 public enum SXSocketAddress {
+    
     case inet(sockaddr_in)
     case inet6(sockaddr_in6)
     case dl(sockaddr_dl)

@@ -30,12 +30,7 @@
 //  Copyright © 2016 yuuji. All rights reserved.
 //
 
-#if os(OSX) || os(iOS) || os(watchOS) || os(tvOS)
-import Darwin
-#else
-import Glibc
-#endif
-
+import xlibc
 import struct Foundation.Data
 import func CKit.mutablePointer
 
